@@ -192,4 +192,3 @@ export function LaunchCta({
   );
 }
 
-import type { ReactNode } from "react";
