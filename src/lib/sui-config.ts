@@ -1,7 +1,7 @@
 import { getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
 import { createNetworkConfig } from "@mysten/dapp-kit";
 
-// Tusk runs on Sui + Walrus testnet.
+// Narwhal runs on Sui + Walrus testnet.
 // After you publish the Move contract, paste the package id below to enable
 // on-chain agent registration & snapshot anchoring.
 export const TUSK_PACKAGE_ID = ""; // e.g. "0xabc...": set after `sui client publish`
