@@ -13,11 +13,11 @@ import {
   Boxes,
   Globe,
 } from "lucide-react";
-import { ThreeScene } from "@/components/three/ThreeScene";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 import { Reveal, RevealText } from "@/components/landing/Reveal";
 import { LaunchCta } from "@/components/landing/WalletButton";
+import penguinHero from "@/assets/penguin-hero.png";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -66,26 +66,33 @@ function AnnouncementBar() {
 /* ---------------- HERO ---------------- */
 function Hero() {
   return (
-    <section className="relative flex min-h-screen flex-col items-center justify-center px-6 pt-24 text-center">
-      <ThreeScene className="pointer-events-none absolute inset-0 z-0" />
-      <div className="aurora-glow pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[70vh]" />
-      <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-background/40 via-transparent to-background" />
+    <section className="relative flex min-h-[calc(100vh-7rem)] flex-col items-center justify-end overflow-hidden px-6 pb-0 pt-12 text-center">
+      {/* aurora glow behind the mascot */}
+      <div className="aurora-glow pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[80vh]" />
+      <motion.div
+        aria-hidden
+        initial={{ opacity: 0, scale: 0.85 }}
+        animate={{ opacity: 0.55, scale: 1 }}
+        transition={{ duration: 1.6, ease: "easeOut" }}
+        className="pointer-events-none absolute bottom-[6vh] left-1/2 z-0 h-[60vh] w-[60vh] -translate-x-1/2 rounded-full bg-primary/40 blur-[120px]"
+      />
 
-      <div className="relative z-10 mx-auto max-w-5xl">
+      {/* eyebrow + headline */}
+      <div className="relative z-20 mx-auto max-w-4xl">
         <motion.span
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="mb-8 inline-flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur"
+          className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-secondary/40 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur"
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-teal" />
+          <span className="h-1.5 w-1.5 rounded-full bg-teal animate-pulse" />
           Memory infrastructure for the agent economy
         </motion.span>
 
-        <h1 className="text-balance text-6xl font-extrabold leading-[0.92] tracking-tight sm:text-8xl md:text-9xl">
+        <h1 className="text-balance text-5xl font-extrabold leading-[0.9] tracking-tight sm:text-7xl md:text-8xl">
           <RevealText text="Memory that" className="block" />
           <motion.span
-            className="block text-muted-foreground"
+            className="block text-gradient"
             initial={{ opacity: 0, filter: "blur(16px)" }}
             animate={{ opacity: 1, filter: "blur(0px)" }}
             transition={{ duration: 1.4, delay: 0.5, ease: "easeOut" }}
@@ -94,23 +101,11 @@ function Hero() {
           </motion.span>
         </h1>
 
-        <motion.p
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.7 }}
-          className="mx-auto mt-8 max-w-2xl text-balance text-lg text-muted-foreground"
-        >
-          Narwhal is the verifiable memory layer for autonomous AI agents — built on Walrus. Every memory is{" "}
-          <span className="text-foreground">provable</span>,{" "}
-          <span className="text-foreground">permanent</span>, and{" "}
-          <span className="text-foreground">accountable</span>, without compromising speed.
-        </motion.p>
-
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.9 }}
-          className="mt-10 flex flex-wrap items-center justify-center gap-4"
+          className="mt-9 flex flex-wrap items-center justify-center gap-4"
         >
           <LaunchCta className="group flex items-center gap-2 rounded-full bg-foreground px-7 py-3.5 text-base font-semibold text-background transition-transform hover:scale-[1.03]">
             Start building
@@ -128,14 +123,29 @@ function Hero() {
         </motion.div>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.4 }}
-        className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2 text-xs uppercase tracking-[0.3em] text-muted-foreground"
-      >
-        Your verifiable memory layer
-      </motion.div>
+      {/* the 3D penguin mascot, rising from the bottom */}
+      <motion.img
+        src={penguinHero}
+        alt="Narwhal — the verifiable memory mascot"
+        width={1024}
+        height={1024}
+        initial={{ opacity: 0, y: 80, scale: 0.92 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 1.2, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        className="animate-float relative z-10 mt-2 w-[clamp(260px,42vw,560px)] select-none drop-shadow-[0_40px_120px_rgba(80,110,255,0.45)]"
+      />
+
+      {/* bottom rounded label panel, walrus-style */}
+      <div className="relative z-20 -mt-6 w-full max-w-4xl rounded-t-[2.5rem] border border-b-0 border-border bg-card/60 px-6 py-5 backdrop-blur">
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.3 }}
+          className="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground"
+        >
+          Your verifiable memory layer
+        </motion.p>
+      </div>
     </section>
   );
 }
