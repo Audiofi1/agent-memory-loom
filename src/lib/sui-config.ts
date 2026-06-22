@@ -2,9 +2,12 @@ import { getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
 import { createNetworkConfig } from "@mysten/dapp-kit";
 
 // Narwhal runs on Sui + Walrus testnet.
-// After you publish the Move contract, paste the package id below to enable
-// on-chain agent registration & snapshot anchoring.
-export const TUSK_PACKAGE_ID = ""; // e.g. "0xabc...": set after `sui client publish`
+// After you publish the Move contract (see DEPLOY.md), paste the package id
+// below to enable on-chain agent registration & snapshot anchoring.
+export const NARWHAL_PACKAGE_ID = ""; // e.g. "0xabc...": set after `sui client publish`
+export const NARWHAL_MODULE = "narwhal";
+// Sui's shared system clock — required by time-stamped entry functions.
+export const SUI_CLOCK_OBJECT_ID = "0x6";
 
 export const ACTIVE_NETWORK = "testnet" as const;
 
