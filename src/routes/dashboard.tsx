@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
