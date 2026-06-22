@@ -10,10 +10,10 @@ import { ACTIVE_NETWORK, networkConfig } from "@/lib/sui-config";
 export function SuiProviders({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
-      const { unregister } = registerSlushWallet("Narwhal", {
+      const result = registerSlushWallet("Narwhal", {
         origin: "https://my.slush.app",
       });
-      return unregister;
+      return result?.unregister;
     } catch {
       // Already registered or unsupported environment — safe to ignore.
     }
