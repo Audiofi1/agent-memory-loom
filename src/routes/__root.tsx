@@ -9,8 +9,18 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
+import "@fontsource/outfit/400.css";
+import "@fontsource/outfit/500.css";
+import "@fontsource/outfit/600.css";
+import "@fontsource/outfit/700.css";
+import "@fontsource/outfit/800.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/500.css";
+import "@mysten/dapp-kit/dist/index.css";
+
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { SuiProviders } from "../components/providers/SuiProviders";
 
 function NotFoundComponent() {
   return (
@@ -77,14 +87,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Tusk — Verifiable memory for AI agents" },
+      { name: "description", content: "Tusk is the permanent, verifiable memory backbone for autonomous AI agents — built on Walrus and Sui." },
+      { name: "author", content: "Tusk" },
+      { property: "og:title", content: "Tusk — Verifiable memory for AI agents" },
+      { property: "og:description", content: "Permanent, tamper-proof, shareable memory for autonomous AI agents. Built on Walrus and Sui." },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:site", content: "@Tusk" },
     ],
     links: [
       {
@@ -118,8 +128,10 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <SuiProviders>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+      </SuiProviders>
     </QueryClientProvider>
   );
 }
