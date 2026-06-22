@@ -1,0 +1,21 @@
+import { getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
+import { createNetworkConfig } from "@mysten/dapp-kit";
+
+// Tusk runs on Sui + Walrus testnet.
+// After you publish the Move contract, paste the package id below to enable
+// on-chain agent registration & snapshot anchoring.
+export const TUSK_PACKAGE_ID = ""; // e.g. "0xabc...": set after `sui client publish`
+
+export const ACTIVE_NETWORK = "testnet" as const;
+
+export const { networkConfig } = createNetworkConfig({
+  testnet: { network: "testnet", url: getJsonRpcFullnodeUrl("testnet") },
+  mainnet: { network: "mainnet", url: getJsonRpcFullnodeUrl("mainnet") },
+});
+
+// Public Walrus testnet HTTP endpoints (no key required) used for blob
+// storage + retrieval. See https://docs.wal.app/docs/getting-started
+export const WALRUS_PUBLISHER = "https://publisher.walrus-testnet.walrus.space";
+export const WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space";
+
+export const SUI_EXPLORER = "https://suiscan.xyz/testnet";
