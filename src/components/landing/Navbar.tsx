@@ -1,33 +1,20 @@
 import { Link } from "@tanstack/react-router";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { WalletButton } from "./WalletButton";
+import penguinHero from "@/assets/penguin-hero.png";
 
 export function Logo({ className = "" }: { className?: string }) {
   return (
-    <span className={`flex items-center gap-2 ${className}`}>
-      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden>
-        {/* narwhal tusk */}
-        <path
-          d="M5 25c6-2 12-6 17-12 1.6-1.9 4-4.4 6.5-6"
-          stroke="url(#ng)"
-          strokeWidth="2.4"
-          strokeLinecap="round"
+    <span className={`flex items-center gap-2.5 ${className}`}>
+      <span className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-secondary/60 ring-1 ring-border">
+        <img
+          src={penguinHero}
+          alt=""
+          width={36}
+          height={36}
+          className="h-8 w-8 scale-125 object-contain object-top"
         />
-        <path
-          d="M6.5 23.2c5-1.6 10-5 14.2-9.8"
-          stroke="url(#ng)"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          opacity="0.55"
-        />
-        <circle cx="7" cy="24" r="2.6" fill="url(#ng)" />
-        <defs>
-          <linearGradient id="ng" x1="5" y1="25" x2="29" y2="7" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#7aa2ff" />
-            <stop offset="1" stopColor="#27e0c0" />
-          </linearGradient>
-        </defs>
-      </svg>
+      </span>
       <span className="text-xl font-extrabold tracking-tight">narwhal</span>
     </span>
   );
@@ -37,8 +24,8 @@ export function Navbar() {
   const account = useCurrentAccount();
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/60 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3.5">
         <Link to="/" className="text-foreground">
           <Logo />
         </Link>
