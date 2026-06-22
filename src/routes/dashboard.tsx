@@ -636,7 +636,7 @@ function AccessLogPanel({ owner }: { owner: string }) {
 }
 
 /* ============================ SHARED UI ============================ */
-function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-6">
       <h3 className="text-lg font-bold">{title}</h3>
