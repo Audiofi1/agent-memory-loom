@@ -1,0 +1,11 @@
+[package]
+name = "narwhal"
+edition = "2024.beta"
+# version is optional for testnet publishing
+version = "0.1.0"
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
+
+[addresses]
+narwhal = "0x0"
