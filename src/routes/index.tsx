@@ -1,5 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { motion } from "motion/react";
+import { useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -7,9 +8,6 @@ import {
   Share2,
   ShieldCheck,
   Lock,
-  Bot,
-  Search,
-  Activity,
   Database,
   KeyRound,
   Boxes,
@@ -19,17 +17,18 @@ import { ThreeScene } from "@/components/three/ThreeScene";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 import { Reveal, RevealText } from "@/components/landing/Reveal";
+import { LaunchCta } from "@/components/landing/WalletButton";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Tusk — Verifiable memory for AI agents" },
+      { title: "Narwhal — Verifiable memory for AI agents" },
       {
         name: "description",
         content:
-          "Tusk is the permanent, verifiable memory backbone for autonomous AI agents — built on Walrus and Sui. Provable, shareable, accountable.",
+          "Narwhal is the permanent, verifiable memory layer for autonomous AI agents — built on Walrus and Sui. Provable, shareable, accountable.",
       },
-      { property: "og:title", content: "Tusk — Verifiable memory for AI agents" },
+      { property: "og:title", content: "Narwhal — Verifiable memory for AI agents" },
       {
         property: "og:description",
         content: "Permanent, tamper-proof, shareable memory for autonomous AI agents. Built on Walrus & Sui.",
@@ -42,15 +41,24 @@ export const Route = createFileRoute("/")({
 function Landing() {
   return (
     <div className="relative overflow-x-clip bg-background text-foreground">
+      <AnnouncementBar />
       <Navbar />
       <Hero />
       <IntroBand />
-      <Platform />
-      <UseCases />
-      <Stack />
+      <FeatureTabs />
       <Marquee />
+      <SuiStack />
       <CtaSection />
       <Footer />
+    </div>
+  );
+}
+
+/* ---------------- ANNOUNCEMENT BAR ---------------- */
+function AnnouncementBar() {
+  return (
+    <div className="relative z-[60] w-full bg-gradient-to-r from-primary via-violet to-teal py-2 text-center text-sm font-medium text-background">
+      Introducing Narwhal Memory: portable, verifiable memory for AI agents
     </div>
   );
 }
@@ -64,27 +72,25 @@ function Hero() {
       <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-background/40 via-transparent to-background" />
 
       <div className="relative z-10 mx-auto max-w-5xl">
-        <motion.a
-          href="/dashboard"
+        <motion.span
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="mb-8 inline-flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur transition-colors hover:text-foreground"
+          className="mb-8 inline-flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur"
         >
           <span className="h-1.5 w-1.5 rounded-full bg-teal" />
-          Introducing Tusk: portable memory for AI agents
-          <ArrowRight className="h-3.5 w-3.5" />
-        </motion.a>
+          Memory infrastructure for the agent economy
+        </motion.span>
 
-        <h1 className="text-balance text-5xl font-extrabold leading-[0.95] tracking-tight sm:text-7xl md:text-8xl">
-          <RevealText text="Memory for agents" className="block" />
+        <h1 className="text-balance text-6xl font-extrabold leading-[0.92] tracking-tight sm:text-8xl md:text-9xl">
+          <RevealText text="Memory that" className="block" />
           <motion.span
             className="block text-muted-foreground"
             initial={{ opacity: 0, filter: "blur(16px)" }}
             animate={{ opacity: 1, filter: "blur(0px)" }}
             transition={{ duration: 1.4, delay: 0.5, ease: "easeOut" }}
           >
-            that never forgets
+            never forgets
           </motion.span>
         </h1>
 
@@ -94,10 +100,10 @@ function Hero() {
           transition={{ duration: 0.8, delay: 0.7 }}
           className="mx-auto mt-8 max-w-2xl text-balance text-lg text-muted-foreground"
         >
-          Tusk is the verifiable memory backbone for autonomous AI agents — built on Walrus. Every decision is{" "}
-          <span className="text-foreground">provable</span>, every memory{" "}
-          <span className="text-foreground">permanent</span>, every action{" "}
-          <span className="text-foreground">accountable</span>.
+          Narwhal is the verifiable memory layer for autonomous AI agents — built on Walrus. Every memory is{" "}
+          <span className="text-foreground">provable</span>,{" "}
+          <span className="text-foreground">permanent</span>, and{" "}
+          <span className="text-foreground">accountable</span>, without compromising speed.
         </motion.p>
 
         <motion.div
@@ -106,13 +112,10 @@ function Hero() {
           transition={{ duration: 0.8, delay: 0.9 }}
           className="mt-10 flex flex-wrap items-center justify-center gap-4"
         >
-          <Link
-            to="/dashboard"
-            className="group flex items-center gap-2 rounded-full bg-foreground px-7 py-3.5 text-base font-semibold text-background transition-transform hover:scale-[1.03]"
-          >
-            Launch app
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Link>
+          <LaunchCta className="group flex items-center gap-2 rounded-full bg-foreground px-7 py-3.5 text-base font-semibold text-background transition-transform hover:scale-[1.03]">
+            Start building
+            <ArrowUpRight className="h-4 w-4" />
+          </LaunchCta>
           <a
             href="https://docs.wal.app/"
             target="_blank"
@@ -120,7 +123,7 @@ function Hero() {
             className="flex items-center gap-2 rounded-full border border-border px-7 py-3.5 text-base font-semibold text-foreground transition-colors hover:border-primary/60"
           >
             Read the docs
-            <ArrowUpRight className="h-4 w-4" />
+            <ArrowRight className="h-4 w-4" />
           </a>
         </motion.div>
       </div>
@@ -141,58 +144,79 @@ function Hero() {
 function IntroBand() {
   return (
     <section className="relative px-6 py-28">
-      <div className="mx-auto max-w-5xl text-center">
+      <div className="aurora-glow pointer-events-none absolute inset-0 opacity-30" />
+      <div className="relative mx-auto max-w-5xl text-center">
         <Reveal>
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">
-            No forgetting. No silos. No black boxes.
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+            Your verifiable memory layer
           </p>
         </Reveal>
         <Reveal delay={0.1}>
-          <h2 className="mx-auto mt-6 max-w-3xl text-balance text-3xl font-bold leading-tight sm:text-5xl">
-            For too long, agents have worked blind, alone, and unaccountable.{" "}
-            <span className="text-muted-foreground">Tusk removes those limits.</span>
+          <h2 className="mx-auto mt-8 max-w-4xl text-balance text-5xl font-bold leading-[1.02] tracking-tight sm:text-7xl">
+            No forgetting.
+            <br />
+            No silos.
+            <br />
+            No black boxes.
           </h2>
         </Reveal>
         <Reveal delay={0.2}>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            Give any agent a permanent, tamper-proof place to store what it knows, what it decided, and why — readable by
-            other agents under clear rules, and auditable by humans at any time.
+          <p className="mx-auto mt-8 max-w-2xl text-lg text-muted-foreground">
+            For too long, agents have worked blind, alone, and unaccountable.{" "}
+            <span className="text-foreground">Narwhal removes those limits.</span> Give any agent a permanent,
+            tamper-proof place to store what it knows, what it decided, and why.
           </p>
+        </Reveal>
+        <Reveal delay={0.3}>
+          <a
+            href="https://docs.wal.app/docs/getting-started"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-10 inline-flex items-center gap-2 rounded-full bg-violet/90 px-7 py-3.5 text-base font-semibold text-background transition-transform hover:scale-[1.03]"
+          >
+            Read the docs <ArrowUpRight className="h-4 w-4" />
+          </a>
         </Reveal>
       </div>
     </section>
   );
 }
 
-/* ---------------- PLATFORM ---------------- */
-const features = [
+/* ---------------- FEATURE TABS ---------------- */
+const tabs = [
   {
+    key: "Availability",
     icon: InfinityIcon,
-    title: "Always permanent",
-    body: "Snapshots are written as content-addressed blobs on Walrus — they outlive the app that created them and never silently disappear.",
+    title: "Always available",
+    body: "Snapshots are written as content-addressed blobs on Walrus — they outlive the app that created them, load fast, and never silently disappear.",
   },
   {
+    key: "Shareability",
     icon: Share2,
     title: "Shared at scale",
-    body: "Memory pools let one agent read another's relevant memory under access policies, unlocking real multi-agent coordination.",
+    body: "Memory pools let one agent read another's relevant memory under clear access policies, unlocking real multi-agent coordination.",
   },
   {
+    key: "Verifiability",
     icon: ShieldCheck,
-    title: "Verifiable & fast",
-    body: "Every snapshot gets a verifiable blob ID anchored on Sui, so anyone can prove a memory hasn't been tampered with.",
+    title: "Verifiable by anyone",
+    body: "Every snapshot gets a verifiable blob ID anchored on Sui, so any human or agent can prove a memory hasn't been tampered with.",
   },
   {
+    key: "Privacy",
     icon: Lock,
     title: "Private by design",
     body: "Seal encrypts any field flagged private before it's stored. You control exactly which agents and humans can decrypt it.",
   },
 ];
 
-function Platform() {
+function FeatureTabs() {
+  const [active, setActive] = useState(0);
+  const Tab = tabs[active];
   return (
-    <section id="platform" className="relative px-6 py-28">
+    <section className="relative px-6 py-28">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-16 max-w-2xl">
+        <div className="mb-14 text-center">
           <Reveal>
             <p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">Power to the builder</p>
           </Reveal>
@@ -203,103 +227,85 @@ function Platform() {
           </Reveal>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2">
-          {features.map((f, i) => (
-            <Reveal key={f.title} delay={i * 0.08}>
-              <div className="hover-lift group relative h-full overflow-hidden rounded-3xl border border-border bg-card p-8">
-                <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl transition-opacity duration-500 group-hover:opacity-100 opacity-40" />
-                <f.icon className="h-9 w-9 text-teal" strokeWidth={1.5} />
-                <h3 className="mt-6 text-2xl font-bold">{f.title}</h3>
-                <p className="mt-3 text-base leading-relaxed text-muted-foreground">{f.body}</p>
-              </div>
-            </Reveal>
+        <div className="mb-10 flex flex-wrap justify-center gap-2">
+          {tabs.map((t, i) => (
+            <button
+              key={t.key}
+              onClick={() => setActive(i)}
+              className={`rounded-full border px-5 py-2 text-sm font-medium transition-colors ${
+                i === active
+                  ? "border-transparent bg-foreground text-background"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t.key}
+            </button>
           ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ---------------- USE CASES ---------------- */
-const useCases = [
-  {
-    icon: Bot,
-    tag: "Trading agents",
-    title: "Strategies that remember.",
-    body: "Trading bots persist every decision and its reasoning, so performance is explainable and never lost between sessions.",
-  },
-  {
-    icon: Search,
-    tag: "Research assistants",
-    title: "Shared knowledge, no silos.",
-    body: "Research agents publish findings to shared pools, letting other agents build on verified context instead of starting over.",
-  },
-  {
-    icon: Activity,
-    tag: "Monitoring systems",
-    title: "An audit trail that proves itself.",
-    body: "Monitoring agents log what they saw and did — producing a tamper-proof record for compliance, trust, and debugging.",
-  },
-];
-
-function UseCases() {
-  return (
-    <section id="use-cases" className="relative px-6 py-28">
-      <div className="aurora-glow pointer-events-none absolute inset-0 opacity-40" />
-      <div className="relative mx-auto max-w-7xl">
-        <div className="mb-16 flex flex-wrap items-end justify-between gap-6">
-          <div className="max-w-2xl">
-            <Reveal>
-              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">Use cases</p>
-            </Reveal>
-            <Reveal delay={0.1}>
-              <h2 className="mt-5 text-balance text-4xl font-bold leading-tight sm:text-6xl">
-                The future runs on Tusk
-              </h2>
-            </Reveal>
-          </div>
         </div>
 
         <div className="grid gap-5 lg:grid-cols-3">
-          {useCases.map((c, i) => (
-            <Reveal key={c.tag} delay={i * 0.1}>
-              <div className="hover-lift group flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-border bg-card p-8">
-                <div>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-secondary/60">
-                    <c.icon className="h-6 w-6 text-teal" strokeWidth={1.5} />
-                  </div>
-                  <p className="mt-6 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                    {c.tag}
-                  </p>
-                  <h3 className="mt-3 text-2xl font-bold leading-snug">{c.title}</h3>
-                  <p className="mt-4 text-base leading-relaxed text-muted-foreground">{c.body}</p>
-                </div>
-                <Link
-                  to="/dashboard"
-                  className="mt-8 inline-flex items-center gap-1 text-sm font-semibold text-foreground transition-colors group-hover:text-teal"
-                >
-                  Try it live <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Link>
-              </div>
-            </Reveal>
-          ))}
+          <motion.div
+            key={Tab.key}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="group relative overflow-hidden rounded-3xl border border-border bg-card p-10 lg:col-span-2"
+          >
+            <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/15 blur-3xl" />
+            <Tab.icon className="h-10 w-10 text-teal" strokeWidth={1.5} />
+            <h3 className="mt-8 text-3xl font-bold sm:text-4xl">{Tab.title}</h3>
+            <p className="mt-4 max-w-xl text-lg leading-relaxed text-muted-foreground">{Tab.body}</p>
+          </motion.div>
+
+          <div className="flex flex-col gap-5">
+            {tabs.map((t, i) => (
+              <button
+                key={t.key}
+                onClick={() => setActive(i)}
+                className={`hover-lift flex-1 rounded-3xl border p-6 text-left transition-colors ${
+                  i === active ? "border-primary/60 bg-card" : "border-border bg-card/50"
+                }`}
+              >
+                <t.icon className="h-6 w-6 text-teal" strokeWidth={1.5} />
+                <h4 className="mt-3 text-lg font-bold">{t.title}</h4>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-/* ---------------- STACK ---------------- */
+/* ---------------- MARQUEE ---------------- */
+function Marquee() {
+  const word = "THE FUTURE RUNS ON NARWHAL";
+  const items = Array.from({ length: 6 });
+  return (
+    <section className="relative overflow-hidden border-y border-border py-10">
+      <div className="flex w-max animate-marquee gap-8">
+        {items.concat(items).map((_, i) => (
+          <span key={i} className="flex items-center gap-8 text-3xl font-extrabold tracking-tight sm:text-5xl">
+            <span className={i % 2 ? "text-gradient" : "text-muted-foreground"}>{word}</span>
+            <span className="text-teal">✦</span>
+          </span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* ---------------- SUI STACK ---------------- */
 const stack = [
   { icon: Database, name: "Walrus", desc: "Decentralized storage. Every memory snapshot is a permanent, content-addressed blob." },
-  { icon: Boxes, name: "MemWal", desc: "Memory indexing & pools — organizes, queries, and shares agent memory at scale." },
+  { icon: Boxes, name: "Pools", desc: "Memory indexing & sharing — organizes, queries, and shares agent memory at scale." },
   { icon: KeyRound, name: "Seal", desc: "Encrypts private fields client-side and releases keys only to authorized readers." },
   { icon: Globe, name: "Sui", desc: "Mints permanent Agent IDs and anchors blob hashes on-chain for tamper-proof verification." },
 ];
 
-function Stack() {
+function SuiStack() {
   return (
-    <section id="stack" className="relative px-6 py-28">
+    <section className="relative px-6 py-28">
       <div className="mx-auto max-w-7xl">
         <div className="grid gap-12 lg:grid-cols-[1fr_1.2fr] lg:items-center">
           <div>
@@ -313,7 +319,7 @@ function Stack() {
             </Reveal>
             <Reveal delay={0.2}>
               <p className="mt-6 max-w-md text-lg text-muted-foreground">
-                Tusk stitches the Walrus stack together — storage, indexing, encryption, and on-chain proof — so the
+                Narwhal stitches the Walrus stack together — storage, sharing, encryption, and on-chain proof — so the
                 entire product, front to back, lives on infrastructure no single company controls.
               </p>
             </Reveal>
@@ -346,24 +352,6 @@ function Stack() {
   );
 }
 
-/* ---------------- MARQUEE ---------------- */
-function Marquee() {
-  const word = "TRUST THE TUSK";
-  const items = Array.from({ length: 8 });
-  return (
-    <section className="relative overflow-hidden border-y border-border py-10">
-      <div className="flex w-max animate-marquee gap-8">
-        {items.concat(items).map((_, i) => (
-          <span key={i} className="flex items-center gap-8 text-3xl font-extrabold tracking-tight sm:text-5xl">
-            <span className={i % 2 ? "text-gradient" : "text-muted-foreground"}>{word}</span>
-            <span className="text-teal">✦</span>
-          </span>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 /* ---------------- CTA ---------------- */
 function CtaSection() {
   return (
@@ -377,25 +365,23 @@ function CtaSection() {
         </Reveal>
         <Reveal delay={0.1}>
           <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground">
-            Register an agent, write its first verifiable memory, and watch it anchor on-chain — in under five minutes.
+            Connect your Sui wallet, register an agent, and write its first verifiable memory — anchored on-chain in
+            minutes.
           </p>
         </Reveal>
         <Reveal delay={0.2}>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-            <Link
-              to="/dashboard"
-              className="group flex items-center gap-2 rounded-full bg-foreground px-8 py-4 text-base font-semibold text-background transition-transform hover:scale-[1.03]"
-            >
-              Launch the app
+            <LaunchCta className="group flex items-center gap-2 rounded-full bg-foreground px-8 py-4 text-base font-semibold text-background transition-transform hover:scale-[1.03]">
+              Connect wallet
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
+            </LaunchCta>
             <a
               href="https://docs.wal.app/docs/getting-started"
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-2 rounded-full border border-border px-8 py-4 text-base font-semibold transition-colors hover:border-primary/60"
             >
-              Start building <ArrowUpRight className="h-4 w-4" />
+              Read the docs <ArrowUpRight className="h-4 w-4" />
             </a>
           </div>
         </Reveal>
