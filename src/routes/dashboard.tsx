@@ -646,7 +646,7 @@ function Panel({ title, subtitle, children }: { title: string; subtitle?: string
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-2">
       <Label className="text-xs uppercase tracking-wider text-muted-foreground">{label}</Label>
