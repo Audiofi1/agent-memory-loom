@@ -87,7 +87,7 @@ function ConnectGate() {
       </div>
       <h1 className="mt-6 text-3xl font-bold">Connect your Sui wallet</h1>
       <p className="mt-3 max-w-md text-muted-foreground">
-        Tusk uses your wallet as your agents' on-chain identity. Connect a Sui testnet wallet to register agents and
+        Narwhal uses your wallet as your agents' on-chain identity. Connect a Sui testnet wallet to register agents and
         write verifiable memory.
       </p>
       <div className="mt-8">

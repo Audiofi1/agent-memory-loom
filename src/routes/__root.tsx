@@ -87,14 +87,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Tusk — Verifiable memory for AI agents" },
-      { name: "description", content: "Tusk is the permanent, verifiable memory backbone for autonomous AI agents — built on Walrus and Sui." },
-      { name: "author", content: "Tusk" },
-      { property: "og:title", content: "Tusk — Verifiable memory for AI agents" },
+      { title: "Narwhal — Verifiable memory for AI agents" },
+      { name: "description", content: "Narwhal is the permanent, verifiable memory backbone for autonomous AI agents — built on Walrus and Sui." },
+      { name: "author", content: "Narwhal" },
+      { property: "og:title", content: "Narwhal — Verifiable memory for AI agents" },
       { property: "og:description", content: "Permanent, tamper-proof, shareable memory for autonomous AI agents. Built on Walrus and Sui." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Tusk" },
+      { name: "twitter:site", content: "@Narwhal" },
     ],
     links: [
       {
