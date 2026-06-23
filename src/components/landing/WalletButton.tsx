@@ -71,6 +71,14 @@ function WalletDialog({
           onOpenChange(false);
           onConnected?.();
         },
+        onError: (err) => {
+          toast.error("Couldn't connect wallet", {
+            description:
+              err instanceof Error
+                ? err.message
+                : "Open your Slush extension and approve the connection.",
+          });
+        },
       },
     );
   }
