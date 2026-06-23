@@ -244,13 +244,33 @@ function DeployCard() {
 function AgentsPanel({ owner, agents, onOpen }: { owner: string; agents: Agent[]; onOpen: (id: string) => void }) {
   const [name, setName] = useState("");
   const [purpose, setPurpose] = useState("");
+  const [busy, setBusy] = useState(false);
+  const { registerAgent } = useNarwhal();
+  const deployed = isDeployed();
 
-  const register = () => {
+  const register = async () => {
     if (!name.trim()) return toast.error("Give your agent a name");
-    db.addAgent({ owner, name: name.trim(), purpose: purpose.trim() });
-    toast.success(`Agent “${name.trim()}” registered`, { description: "Identity bound to your wallet." });
-    setName("");
-    setPurpose("");
+    setBusy(true);
+    try {
+      if (deployed) {
+        toast.loading("Registering agent on-chain…", { id: "agent" });
+        const { objectId, digest } = await registerAgent(name.trim(), purpose.trim() || "agent");
+        db.addAgent({ id: objectId, owner, name: name.trim(), purpose: purpose.trim(), onChainId: objectId, txDigest: digest });
+        toast.success(`Agent “${name.trim()}” registered on-chain`, {
+          id: "agent",
+          description: `Identity object ${objectId.slice(0, 14)}…`,
+        });
+      } else {
+        db.addAgent({ owner, name: name.trim(), purpose: purpose.trim() });
+        toast.success(`Agent “${name.trim()}” registered`, { description: "Deploy the contract to anchor it on-chain." });
+      }
+      setName("");
+      setPurpose("");
+    } catch (e: any) {
+      toast.error("Registration failed", { id: "agent", description: e?.message ?? "Try again" });
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -268,11 +288,13 @@ function AgentsPanel({ owner, agents, onOpen }: { owner: string; agents: Agent[]
               rows={3}
             />
           </Field>
-          <button onClick={register} className="btn-primary w-full">
-            <Plus className="h-4 w-4" /> Register agent
+          <button onClick={register} disabled={busy} className="btn-primary w-full disabled:opacity-60">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            {busy ? "Registering…" : deployed ? "Register agent on-chain" : "Register agent"}
           </button>
         </div>
       </Panel>
+
 
       <div>
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">Your agents</h3>
