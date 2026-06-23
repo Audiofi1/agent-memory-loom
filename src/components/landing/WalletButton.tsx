@@ -20,16 +20,35 @@ function truncate(addr: string) {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
-/** Only surface Sui-native wallets — never Phantom / EVM injectors. Dedupe by name. */
+// The hosted Slush web wallet registers under this id. We prefer the real
+// browser extension (which opens directly) over the hosted popup fallback,
+// because the popup is blocked when launched from an async callback.
+const SLUSH_WEB_ID = "com.mystenlabs.suiwallet.web";
+
+/** Only surface Sui-native wallets — never Phantom / EVM injectors. Dedupe by
+ *  name, preferring an installed browser extension over the hosted web wallet. */
 function useSuiWallets() {
   const wallets = useWallets();
-  const seen = new Set<string>();
-  return wallets.filter((w) => {
-    if (/phantom|metamask|coinbase|rabby|okx/i.test(w.name)) return false;
-    if (seen.has(w.name)) return false;
-    seen.add(w.name);
-    return true;
-  });
+
+  const sui = wallets.filter(
+    (w) => !/phantom|metamask|coinbase|rabby|okx/i.test(w.name),
+  );
+
+  // Collapse duplicates by name, keeping the extension instance when present.
+  const byName = new Map<string, (typeof sui)[number]>();
+  for (const w of sui) {
+    const existing = byName.get(w.name);
+    if (!existing) {
+      byName.set(w.name, w);
+      continue;
+    }
+    // Replace a hosted web wallet with a real extension of the same name.
+    const existingIsWeb = (existing as { id?: string }).id === SLUSH_WEB_ID;
+    const candidateIsWeb = (w as { id?: string }).id === SLUSH_WEB_ID;
+    if (existingIsWeb && !candidateIsWeb) byName.set(w.name, w);
+  }
+
+  return Array.from(byName.values());
 }
 
 function WalletDialog({
