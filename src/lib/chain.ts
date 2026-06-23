@@ -1,4 +1,11 @@
-import { NARWHAL_PACKAGE_ID } from "./sui-config";
+import { NARWHAL_PACKAGE_ID, SUI_EXPLORER } from "./sui-config";
+
+/** Suiscan explorer links for any on-chain entity. */
+export const explorer = {
+  object: (id: string) => `${SUI_EXPLORER}/object/${id}`,
+  tx: (digest: string) => `${SUI_EXPLORER}/tx/${digest}`,
+  account: (addr: string) => `${SUI_EXPLORER}/account/${addr}`,
+};
 
 /**
  * The Narwhal package id can be set two ways:

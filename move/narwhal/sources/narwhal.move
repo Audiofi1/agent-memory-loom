@@ -9,7 +9,7 @@
 /// Design notes:
 ///   - Identities and pools are Sui objects owned by the creator's address.
 ///   - Reads/authorizations/anchors emit events; an off-chain indexer
-///     (Lovable Cloud) mirrors them for fast querying and the audit UI.
+///     mirrors them for fast querying and the audit UI.
 module narwhal::narwhal;
 
 use std::string::String;

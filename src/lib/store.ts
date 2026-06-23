@@ -2,8 +2,8 @@
  * Lightweight local index for the Tusk dashboard.
  *
  * This mirrors the on-chain / Walrus records so the audit layer stays fast and
- * queryable in the browser. Scoped per connected wallet address. When the Move
- * contract + Lovable Cloud are wired in, this is the layer that gets replaced.
+ * queryable in the browser. Scoped per connected wallet address. It acts as a
+ * local read-model over the source of truth: Sui events + Walrus blobs.
  */
 
 export type Agent = {
