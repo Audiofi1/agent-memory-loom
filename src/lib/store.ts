@@ -11,6 +11,8 @@ export type Agent = {
   owner: string;
   name: string;
   purpose: string;
+  onChainId?: string; // Sui object id of the AgentIdentity (when deployed)
+  txDigest?: string;
   createdAt: number;
 };
 
@@ -26,6 +28,7 @@ export type Snapshot = {
   blobId: string;
   hash: string;
   endEpoch?: number;
+  txDigest?: string; // on-chain anchor digest (when anchored)
   createdAt: number;
 };
 
@@ -36,6 +39,7 @@ export type Pool = {
   name: string;
   description: string;
   readers: string[]; // authorized agent ids
+  onChainId?: string; // Sui object id of the MemoryPool (when deployed)
   createdAt: number;
 };
 
