@@ -749,12 +749,13 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
                 {agents.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
                     {agents.map((a) => (
-                      <button key={a.id} onClick={() => { db.setReader(p.id, a.id, true); toast.success(`${a.name} authorized`); }} className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground">
+                      <button key={a.id} onClick={() => authorize(p, a.id)} className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground">
                         + {a.name}
                       </button>
                     ))}
                   </div>
                 )}
+
               </div>
             </div>
           ))
