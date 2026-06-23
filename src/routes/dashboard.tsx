@@ -19,6 +19,11 @@ import {
   XCircle,
   Clock,
   KeyRound,
+  Rocket,
+  FileCode2,
+  Copy,
+  Check,
+  Network,
 } from "lucide-react";
 
 import { Logo } from "@/components/landing/Navbar";
@@ -39,10 +44,14 @@ import {
 import { db, type Agent, type Snapshot } from "@/lib/store";
 import { useTuskSync } from "@/lib/useTusk";
 import { storeBlob, readBlob, walrusBlobUrl, sha256Hex } from "@/lib/walrus";
-import { SUI_EXPLORER } from "@/lib/sui-config";
-import { getPackageId, isDeployed } from "@/lib/chain";
+import {
+  SUI_EXPLORER,
+  WALRUS_PUBLISHER,
+  WALRUS_AGGREGATOR,
+  NARWHAL_MODULE,
+} from "@/lib/sui-config";
+import { getPackageId, isDeployed, explorer } from "@/lib/chain";
 import { useNarwhal } from "@/lib/useNarwhal";
-import { Rocket } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
@@ -120,10 +129,12 @@ function Workspace({ owner }: { owner: string }) {
     <div>
       <div className="mb-8">
         <h1 className="text-4xl font-bold tracking-tight">Memory console</h1>
-        <p className="mt-2 text-muted-foreground">Register agents, write verifiable memory, and share it under access rules.</p>
+        <p className="mt-2 text-muted-foreground">Give your agents a permanent, verifiable memory — then share it across agents under explicit access rules.</p>
       </div>
 
       <DeployCard />
+
+      <HowItWorks />
 
       <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
@@ -142,8 +153,9 @@ function Workspace({ owner }: { owner: string }) {
         <TabsList className="mb-8 flex h-auto flex-wrap gap-1 bg-secondary/40 p-1">
           <TabsTrigger value="agents" className="gap-2"><Bot className="h-4 w-4" />Agents</TabsTrigger>
           <TabsTrigger value="memory" className="gap-2"><Database className="h-4 w-4" />Memory</TabsTrigger>
-          <TabsTrigger value="pools" className="gap-2"><Share2 className="h-4 w-4" />Pools</TabsTrigger>
+          <TabsTrigger value="pools" className="gap-2"><Share2 className="h-4 w-4" />Shared pools</TabsTrigger>
           <TabsTrigger value="log" className="gap-2"><ScrollText className="h-4 w-4" />Access log</TabsTrigger>
+          <TabsTrigger value="contract" className="gap-2"><FileCode2 className="h-4 w-4" />Contract</TabsTrigger>
         </TabsList>
 
         <TabsContent value="agents">
@@ -165,7 +177,54 @@ function Workspace({ owner }: { owner: string }) {
         <TabsContent value="log">
           <AccessLogPanel owner={owner} />
         </TabsContent>
+        <TabsContent value="contract">
+          <ContractPanel owner={owner} agents={agents} pools={pools} />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+/* ============================ HOW IT WORKS ============================ */
+function HowItWorks() {
+  const steps = [
+    {
+      icon: Bot,
+      title: "1 · Register an agent",
+      body: "Mint a wallet-owned on-chain identity for each bot (trading, research, monitoring). This is the agent's permanent address for memory.",
+    },
+    {
+      icon: Database,
+      title: "2 · Write memory to Walrus",
+      body: "Every decision + reasoning is stored as a content-addressed blob on Walrus and hashed (SHA-256), so it can never be silently altered.",
+    },
+    {
+      icon: Share2,
+      title: "3 · Share & coordinate",
+      body: "Create a pool, authorize another team's agent address, and they read your findings. Each anchor and access is logged on Sui for audit.",
+    },
+  ];
+  return (
+    <div className="mb-8 rounded-2xl border border-border bg-card/60 p-6">
+      <div className="mb-4 flex items-center gap-2">
+        <Network className="h-4 w-4 text-teal" />
+        <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">How agents use Narwhal</h2>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {steps.map((s) => (
+          <div key={s.title} className="rounded-xl border border-border bg-secondary/30 p-4">
+            <div className="flex items-center gap-2">
+              <s.icon className="h-4 w-4 text-teal" />
+              <p className="font-semibold">{s.title}</p>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">{s.body}</p>
+          </div>
+        ))}
+      </div>
+      <p className="mt-4 text-xs text-muted-foreground">
+        <span className="text-foreground">Developers</span> get cross-session memory for a single agent (Agents → Memory).{" "}
+        <span className="text-foreground">Teams</span> coordinate multiple agents by sharing pools (Shared pools → Access log).
+      </p>
     </div>
   );
 }
@@ -799,6 +858,144 @@ function AccessLogPanel({ owner }: { owner: string }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+/* ============================ CONTRACT ============================ */
+function ContractPanel({ owner, agents, pools }: { owner: string; agents: Agent[]; pools: ReturnType<typeof db.pools> }) {
+  const deployed = isDeployed();
+  const pkg = getPackageId();
+
+  const functions = [
+    { sig: "register_agent(name, kind, clock)", desc: "Mints an AgentIdentity object owned by the caller." },
+    { sig: "create_memory_pool(agent, name)", desc: "Creates a shareable MemoryPool tied to an agent." },
+    { sig: "authorize_reader(pool, reader)", desc: "Adds an address to a pool's on-chain reader allowlist." },
+    { sig: "revoke_reader(pool, reader)", desc: "Removes an address from the allowlist." },
+    { sig: "anchor_snapshot(agent, pool, blob_id, hash, has_private, clock)", desc: "Binds a Walrus blob id + SHA-256 hash on-chain." },
+    { sig: "log_access(pool, blob_id, clock)", desc: "Records an authorized read in the audit log." },
+  ];
+
+  const onChainAgents = agents.filter((a) => a.onChainId);
+  const onChainPools = pools.filter((p) => p.onChainId);
+
+  return (
+    <div className="space-y-6">
+      <Panel title="Network & deployment" subtitle="Everything below is live on public infrastructure — no private keys held by this app.">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <InfoRow k="Sui network" v="Testnet" link={SUI_EXPLORER} />
+          <InfoRow k="Move module" v={`${NARWHAL_MODULE}`} />
+          <InfoRow k="Walrus publisher" v={WALRUS_PUBLISHER} link={WALRUS_PUBLISHER} />
+          <InfoRow k="Walrus aggregator" v={WALRUS_AGGREGATOR} link={WALRUS_AGGREGATOR} />
+        </div>
+
+        <div className="mt-5 rounded-xl border border-border bg-secondary/30 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Package ID</p>
+          {deployed ? (
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <code className="break-all rounded-md bg-background px-2 py-1 font-mono text-xs">{pkg}</code>
+              <CopyButton value={pkg} />
+              <a href={explorer.object(pkg)} target="_blank" rel="noreferrer" className="btn-ghost">
+                <ExternalLink className="h-4 w-4" /> Suiscan
+              </a>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Not deployed in this browser yet. Click <span className="text-foreground">Deploy to testnet</span> above, then your
+              package id and explorer link appear here.
+            </p>
+          )}
+        </div>
+      </Panel>
+
+      <Panel title="Entry functions" subtitle={`Public Move calls in ${NARWHAL_MODULE}::${NARWHAL_MODULE}.`}>
+        <div className="space-y-2">
+          {functions.map((f) => (
+            <div key={f.sig} className="rounded-xl border border-border bg-secondary/20 p-3">
+              <code className="font-mono text-xs text-teal">{f.sig}</code>
+              <p className="mt-1 text-sm text-muted-foreground">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Your on-chain objects" subtitle="Agent identities and pools you own, with direct explorer links.">
+        {onChainAgents.length === 0 && onChainPools.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nothing anchored on-chain yet. Deploy the contract, then register an agent / create a pool to mint real Sui objects.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {onChainAgents.map((a) => (
+              <ObjectRow key={a.id} icon={Bot} label={a.name} id={a.onChainId!} kind="AgentIdentity" />
+            ))}
+            {onChainPools.map((p) => (
+              <ObjectRow key={p.id} icon={Share2} label={p.name} id={p.onChainId!} kind="MemoryPool" />
+            ))}
+          </div>
+        )}
+        <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+          <KeyRound className="h-3.5 w-3.5" /> Owner wallet:{" "}
+          <a href={explorer.account(owner)} target="_blank" rel="noreferrer" className="font-mono text-teal hover:underline">
+            {owner.slice(0, 16)}…
+          </a>
+        </p>
+      </Panel>
+    </div>
+  );
+}
+
+function InfoRow({ k, v, link }: { k: string; v: string; link?: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-secondary/20 p-3">
+      <p className="text-xs uppercase tracking-wider text-muted-foreground">{k}</p>
+      {link ? (
+        <a href={link} target="_blank" rel="noreferrer" className="mt-1 block break-all font-mono text-xs text-teal hover:underline">
+          {v}
+        </a>
+      ) : (
+        <p className="mt-1 break-all font-mono text-xs">{v}</p>
+      )}
+    </div>
+  );
+}
+
+function ObjectRow({ icon: Icon, label, id, kind }: { icon: any; label: string; id: string; kind: string }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-secondary/20 p-3">
+      <div className="flex items-center gap-3">
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card">
+          <Icon className="h-4 w-4 text-teal" />
+        </span>
+        <div>
+          <p className="font-semibold">{label}</p>
+          <p className="font-mono text-xs text-muted-foreground">{kind} · {id.slice(0, 18)}…</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <CopyButton value={id} />
+        <a href={explorer.object(id)} target="_blank" rel="noreferrer" className="btn-ghost">
+          <ExternalLink className="h-4 w-4" /> Suiscan
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => {
+        navigator.clipboard.writeText(value);
+        setCopied(true);
+        toast.success("Copied");
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      className="btn-ghost"
+    >
+      {copied ? <Check className="h-4 w-4 text-teal" /> : <Copy className="h-4 w-4" />}
+      {copied ? "Copied" : "Copy"}
+    </button>
   );
 }
 
