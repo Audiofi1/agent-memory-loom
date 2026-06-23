@@ -19,6 +19,7 @@ import "@fontsource/jetbrains-mono/500.css";
 import "@mysten/dapp-kit/dist/index.css";
 
 import appCss from "../styles.css?url";
+import ogImage from "../assets/og-tusk.jpg.asset.json";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SuiProviders } from "../components/providers/SuiProviders";
 import { Toaster } from "../components/ui/sonner";
