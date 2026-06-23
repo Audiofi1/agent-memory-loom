@@ -129,10 +129,12 @@ function Workspace({ owner }: { owner: string }) {
     <div>
       <div className="mb-8">
         <h1 className="text-4xl font-bold tracking-tight">Memory console</h1>
-        <p className="mt-2 text-muted-foreground">Register agents, write verifiable memory, and share it under access rules.</p>
+        <p className="mt-2 text-muted-foreground">Give your agents a permanent, verifiable memory — then share it across agents under explicit access rules.</p>
       </div>
 
       <DeployCard />
+
+      <HowItWorks />
 
       <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
@@ -151,8 +153,9 @@ function Workspace({ owner }: { owner: string }) {
         <TabsList className="mb-8 flex h-auto flex-wrap gap-1 bg-secondary/40 p-1">
           <TabsTrigger value="agents" className="gap-2"><Bot className="h-4 w-4" />Agents</TabsTrigger>
           <TabsTrigger value="memory" className="gap-2"><Database className="h-4 w-4" />Memory</TabsTrigger>
-          <TabsTrigger value="pools" className="gap-2"><Share2 className="h-4 w-4" />Pools</TabsTrigger>
+          <TabsTrigger value="pools" className="gap-2"><Share2 className="h-4 w-4" />Shared pools</TabsTrigger>
           <TabsTrigger value="log" className="gap-2"><ScrollText className="h-4 w-4" />Access log</TabsTrigger>
+          <TabsTrigger value="contract" className="gap-2"><FileCode2 className="h-4 w-4" />Contract</TabsTrigger>
         </TabsList>
 
         <TabsContent value="agents">
@@ -174,7 +177,54 @@ function Workspace({ owner }: { owner: string }) {
         <TabsContent value="log">
           <AccessLogPanel owner={owner} />
         </TabsContent>
+        <TabsContent value="contract">
+          <ContractPanel owner={owner} agents={agents} pools={pools} />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+/* ============================ HOW IT WORKS ============================ */
+function HowItWorks() {
+  const steps = [
+    {
+      icon: Bot,
+      title: "1 · Register an agent",
+      body: "Mint a wallet-owned on-chain identity for each bot (trading, research, monitoring). This is the agent's permanent address for memory.",
+    },
+    {
+      icon: Database,
+      title: "2 · Write memory to Walrus",
+      body: "Every decision + reasoning is stored as a content-addressed blob on Walrus and hashed (SHA-256), so it can never be silently altered.",
+    },
+    {
+      icon: Share2,
+      title: "3 · Share & coordinate",
+      body: "Create a pool, authorize another team's agent address, and they read your findings. Each anchor and access is logged on Sui for audit.",
+    },
+  ];
+  return (
+    <div className="mb-8 rounded-2xl border border-border bg-card/60 p-6">
+      <div className="mb-4 flex items-center gap-2">
+        <Network className="h-4 w-4 text-teal" />
+        <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">How agents use Narwhal</h2>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {steps.map((s) => (
+          <div key={s.title} className="rounded-xl border border-border bg-secondary/30 p-4">
+            <div className="flex items-center gap-2">
+              <s.icon className="h-4 w-4 text-teal" />
+              <p className="font-semibold">{s.title}</p>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">{s.body}</p>
+          </div>
+        ))}
+      </div>
+      <p className="mt-4 text-xs text-muted-foreground">
+        <span className="text-foreground">Developers</span> get cross-session memory for a single agent (Agents → Memory).{" "}
+        <span className="text-foreground">Teams</span> coordinate multiple agents by sharing pools (Shared pools → Access log).
+      </p>
     </div>
   );
 }
