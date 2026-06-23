@@ -19,6 +19,11 @@ import {
   XCircle,
   Clock,
   KeyRound,
+  Rocket,
+  FileCode2,
+  Copy,
+  Check,
+  Network,
 } from "lucide-react";
 
 import { Logo } from "@/components/landing/Navbar";
@@ -39,10 +44,14 @@ import {
 import { db, type Agent, type Snapshot } from "@/lib/store";
 import { useTuskSync } from "@/lib/useTusk";
 import { storeBlob, readBlob, walrusBlobUrl, sha256Hex } from "@/lib/walrus";
-import { SUI_EXPLORER } from "@/lib/sui-config";
-import { getPackageId, isDeployed } from "@/lib/chain";
+import {
+  SUI_EXPLORER,
+  WALRUS_PUBLISHER,
+  WALRUS_AGGREGATOR,
+  NARWHAL_MODULE,
+} from "@/lib/sui-config";
+import { getPackageId, isDeployed, explorer } from "@/lib/chain";
 import { useNarwhal } from "@/lib/useNarwhal";
-import { Rocket } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
