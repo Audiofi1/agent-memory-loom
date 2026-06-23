@@ -404,6 +404,7 @@ function SnapshotComposer({
   const [privateNote, setPrivateNote] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [busy, setBusy] = useState(false);
+  const { anchorSnapshot } = useNarwhal();
 
   const submit = async () => {
     if (!title.trim() || !decision.trim()) return toast.error("Title and decision are required");
@@ -423,6 +424,20 @@ function SnapshotComposer({
       toast.loading("Writing to Walrus…", { id: "store" });
       const result = await storeBlob(content);
       toast.success("Stored on Walrus", { id: "store", description: `Blob ${result.blobId.slice(0, 18)}…` });
+
+      // If deployed and we have an on-chain agent + a pool to anchor against, bind it on-chain.
+      let txDigest: string | undefined;
+      const pool = db.pools(owner).find((p) => p.ownerAgentId === agent.id && p.onChainId);
+      if (isDeployed() && agent.onChainId && pool?.onChainId) {
+        try {
+          toast.loading("Anchoring on-chain…", { id: "anchor" });
+          txDigest = await anchorSnapshot(agent.onChainId, pool.onChainId, result.blobId, hash, isPrivate);
+          toast.success("Anchored on Sui", { id: "anchor", description: `Tx ${txDigest.slice(0, 14)}…` });
+        } catch (e: any) {
+          toast.error("On-chain anchor skipped", { id: "anchor", description: e?.message ?? "Stored on Walrus only" });
+        }
+      }
+
       db.addSnapshot({
         agentId: agent.id,
         owner,
@@ -434,6 +449,7 @@ function SnapshotComposer({
         blobId: result.blobId,
         hash,
         endEpoch: result.endEpoch,
+        txDigest,
       });
       setTitle("");
       setDecision("");
@@ -446,6 +462,7 @@ function SnapshotComposer({
       setBusy(false);
     }
   };
+
 
   return (
     <Panel title="Write a memory snapshot" subtitle="Stored as a permanent, content-addressed blob on Walrus.">
