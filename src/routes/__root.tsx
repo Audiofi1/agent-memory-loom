@@ -21,6 +21,7 @@ import "@mysten/dapp-kit/dist/index.css";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SuiProviders } from "../components/providers/SuiProviders";
+import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
   return (
