@@ -136,6 +136,7 @@ function RootComponent() {
       <SuiProviders>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
+        <Toaster />
       </SuiProviders>
     </QueryClientProvider>
   );
