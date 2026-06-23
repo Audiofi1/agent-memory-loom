@@ -40,6 +40,9 @@ import { db, type Agent, type Snapshot } from "@/lib/store";
 import { useTuskSync } from "@/lib/useTusk";
 import { storeBlob, readBlob, walrusBlobUrl, sha256Hex } from "@/lib/walrus";
 import { SUI_EXPLORER } from "@/lib/sui-config";
+import { getPackageId, isDeployed } from "@/lib/chain";
+import { useNarwhal } from "@/lib/useNarwhal";
+import { Rocket } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
