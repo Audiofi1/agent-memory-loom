@@ -727,7 +727,7 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
                     {p.readers.map((r) => (
                       <span key={r} className="flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-3 py-1 font-mono text-xs">
                         {r.slice(0, 12)}…
-                        <button onClick={() => db.setReader(p.id, r, false)} className="text-destructive hover:underline">revoke</button>
+                        <button onClick={() => revoke(p, r)} className="text-destructive hover:underline">revoke</button>
                       </span>
                     ))}
                   </div>
@@ -737,8 +737,7 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
                   <button
                     onClick={() => {
                       if (!readerId.trim()) return toast.error("Enter an agent id");
-                      db.setReader(p.id, readerId.trim(), true);
-                      toast.success("Reader authorized");
+                      authorize(p, readerId.trim());
                       setReaderId("");
                     }}
                     className="btn-primary shrink-0"
@@ -746,6 +745,7 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
                     Authorize
                   </button>
                 </div>
+
                 {agents.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
                     {agents.map((a) => (
