@@ -123,6 +123,8 @@ function Workspace({ owner }: { owner: string }) {
         <p className="mt-2 text-muted-foreground">Register agents, write verifiable memory, and share it under access rules.</p>
       </div>
 
+      <DeployCard />
+
       <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="rounded-2xl border border-border bg-card p-5">
@@ -134,6 +136,7 @@ function Workspace({ owner }: { owner: string }) {
           </div>
         ))}
       </div>
+
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-8 flex h-auto flex-wrap gap-1 bg-secondary/40 p-1">
