@@ -1,172 +1,133 @@
-# Narwhal — Deploy everything (Sui testnet + Walrus)
+# Deploying Narwhal to Sui Testnet — step by step
 
-This is the one-shot guide to: install the Sui CLI, get testnet/devnet gas,
-publish the Move contract, and set up Walrus. Copy/paste top to bottom.
+You don't need to know Sui internals. Copy-paste each block in order.
+Total time: ~10 minutes. You only do this once.
 
-> Networks in short:
-> - **devnet** — wiped frequently, newest features. Good for throwaway tests.
-> - **testnet** — stable, what hackathons (Sui Overflow / Walrus track) expect. **Use testnet.**
-> - **mainnet** — real money. Not for the demo.
+The smart contract is already written for you at:
+`move/narwhal/sources/narwhal.move`
 
 ---
 
-## 1. Install the Sui CLI
+## Step 1 — Install the Sui command line tool
 
-macOS / Linux (Homebrew):
+**macOS** (needs [Homebrew](https://brew.sh)):
 ```bash
 brew install sui
-sui --version
 ```
 
-Or download a release binary from https://github.com/MystenLabs/sui/releases
-(pick the `testnet` build for your OS) and put `sui` on your PATH.
+**Windows**: open **PowerShell** and run:
+```powershell
+winget install MystenLabs.Sui
+```
+
+**Linux / Ubuntu**:
+```bash
+curl -fLJO https://github.com/MystenLabs/sui/releases/latest/download/sui-ubuntu-x86_64.tgz
+tar -xzf sui-ubuntu-x86_64.tgz && sudo mv sui /usr/local/bin/
+```
+
+Check it worked:
+```bash
+sui --version
+```
+You should see a version number. If "command not found", close and reopen the terminal.
 
 ---
 
-## 2. Create a wallet + point it at testnet
+## Step 2 — Point the CLI at testnet
 
 ```bash
-# creates ~/.sui/sui_config and a new keypair on first run
 sui client
+```
+The first time it asks some questions. Answer like this:
+- `Connect to a Sui Full node server?` → press **Enter** (yes)
+- Full node URL → type: `https://fullnode.testnet.sui.io:443`
+- Environment alias → type: `testnet`
+- Key scheme → type `0` (ed25519)
 
-# add + switch to the testnet RPC
+This creates a new wallet address for the CLI. Copy the address it prints
+(starts with `0x...`). You'll fund it next.
+
+If it didn't ask, force testnet:
+```bash
 sui client new-env --alias testnet --rpc https://fullnode.testnet.sui.io:443
 sui client switch --env testnet
+```
 
-# show your active address (you'll fund THIS)
+See your CLI address any time:
+```bash
 sui client active-address
 ```
 
-Keep the recovery phrase it prints somewhere safe. This address is your
-agents' on-chain identity.
-
 ---
 
-## 3. Get testnet gas (free SUI)
+## Step 3 — Get free testnet SUI into the CLI address
 
-**Option A — CLI faucet (easiest):**
+The CLI wallet (Step 2) is a NEW address — separate from your Slush wallet.
+Fund THIS one so it can pay the publish gas:
+
 ```bash
 sui client faucet
-# specify an address explicitly if needed:
-# sui client faucet --address <YOUR_ADDRESS>
 ```
 
-**Option B — Web / Discord faucet:**
-- Web: https://faucet.sui.io/  (select **Testnet**, paste your address)
-- Discord: the Sui Discord `#testnet-faucet` channel → `!faucet <address>`
-
-**Devnet gas** (only if you also test on devnet):
-```bash
-sui client switch --env devnet   # create it first if missing:
-# sui client new-env --alias devnet --rpc https://fullnode.devnet.sui.io:443
-sui client faucet
-sui client switch --env testnet  # switch back for the real deploy
-```
-
-Confirm you have gas:
+Wait ~30 seconds, then check the balance:
 ```bash
 sui client gas
 ```
+You need at least one gas coin listed. If empty, also try the web faucet at
+https://faucet.sui.io (select **Testnet**, paste your `active-address`).
 
 ---
 
-## 4. Publish the Move contract
+## Step 4 — Publish the contract
 
-The contract lives in `move/narwhal`.
-
+From the project root:
 ```bash
 cd move/narwhal
-sui move build          # compiles; fixes any toolchain issues early
 sui client publish --gas-budget 100000000
 ```
 
-From the publish output, copy these two values:
+When it succeeds, scroll the output to **Object Changes → Published Objects**
+and copy the **PackageID** (a long `0x...` string).
 
-- **`packageId`** — under `Published Objects` (a `0x…` address).
-- The `Clock` object is the shared system clock at the fixed address
-  **`0x6`** — you'll pass it into time-stamped calls. No need to copy it.
+Example line:
+```
+PackageID: 0x9f2c....abcd
+```
 
 ---
 
-## 5. Wire the package id into the app
+## Step 5 — Wire the Package ID into the app
 
-Open `src/lib/sui-config.ts` and set:
-
+Open `src/lib/sui-config.ts` and paste your PackageID:
 ```ts
-export const NARWHAL_PACKAGE_ID = "0x...";   // packageId from step 4
-export const SUI_CLOCK_OBJECT_ID = "0x6";    // shared system clock
+export const NARWHAL_PACKAGE_ID = "0x9f2c....abcd"; // <- your real id
 ```
 
-The dashboard builds its transactions against `NARWHAL_PACKAGE_ID`, so once
-this is set the on-chain calls (`register_agent`, `create_memory_pool`,
-`authorize_reader`, `anchor_snapshot`, `log_access`) go live.
+Save. That's it — the dashboard can now register agents and anchor
+snapshots on-chain.
 
 ---
 
-## 6. Walrus setup (decentralized blob storage)
+## Optional — use your Slush wallet address instead of the CLI one
 
-You do **not** need to run a node for the demo. Narwhal uses the public
-Walrus **testnet** HTTP publisher + aggregator (already configured in
-`src/lib/sui-config.ts`):
+If you want the contract owned by the SAME address that holds your Slush
+testnet SUI, import the Slush key into the CLI:
 
-```
-Publisher  (write blobs):  https://publisher.walrus-testnet.walrus.space
-Aggregator (read blobs):   https://aggregator.walrus-testnet.walrus.space
-```
+1. In Slush: Settings → Export Private Key (a string starting `suiprivkey...`)
+2. ```bash
+   sui keytool import "<suiprivkey...>" ed25519
+   sui client switch --address <that address>
+   ```
+3. Re-run Step 4.
 
-Quick smoke test from your terminal:
-```bash
-# store a blob
-echo "hello narwhal" | curl -X PUT \
-  "https://publisher.walrus-testnet.walrus.space/v1/blobs?epochs=5" \
-  --upload-file -
-
-# the response JSON contains a blobId — read it back:
-curl "https://aggregator.walrus-testnet.walrus.space/v1/blobs/<BLOB_ID>"
-```
-
-**Optional — Walrus CLI (only if you want to publish from your machine or host a Walrus Site):**
-```bash
-# install the walrus binary (see docs.wal.app), then:
-walrus get-wal           # swap testnet SUI -> WAL (storage token)
-walrus store ./file.json --epochs 5
-walrus read <BLOB_ID>
-```
-- **WAL** is the token that pays for storage; `walrus get-wal` exchanges
-  testnet SUI for testnet WAL. The public publisher above sponsors storage
-  for you, so for the in-app demo you don't need WAL yourself.
-- Docs: https://docs.wal.app/docs/getting-started
+⚠️ Never paste a private key anywhere except your own terminal. Never send it
+to me or anyone else.
 
 ---
 
-## 7. Verify on-chain (judging path)
-
-After registering an agent and writing a snapshot in the dashboard:
-
-```bash
-# inspect your agent object
-sui client object <AGENT_OBJECT_ID>
-
-# anchoring emits a SnapshotAnchored event with blob_id + content_hash.
-# View the tx on the explorer:
-#   https://suiscan.xyz/testnet/tx/<TX_DIGEST>
-#   https://suiexplorer.com/txblock/<TX_DIGEST>?network=testnet
-```
-
-The "Verify on Walrus" button in the snapshot detail screen re-fetches the
-blob from the aggregator and re-hashes it, proving the on-chain
-`content_hash` still matches — live, in front of the judges.
-
----
-
-## TL;DR deploy in one block
-
-```bash
-# 1. wallet + testnet
-sui client new-env --alias testnet --rpc https://fullnode.testnet.sui.io:443
-sui client switch --env testnet
-sui client faucet
-# 2. publish
-cd move/narwhal && sui move build && sui client publish --gas-budget 100000000
-# 3. paste packageId into src/lib/sui-config.ts (NARWHAL_PACKAGE_ID)
-```
+## Troubleshooting
+- **`No gas coins found`** → repeat Step 3 (faucet is rate-limited; wait a minute).
+- **`Dependency resolution failed`** → run `sui client publish` again; testnet
+  framework downloads can be flaky on first try.
+- **Publish says insufficient gas** → raise the budget: `--gas-budget 200000000`.
