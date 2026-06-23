@@ -9,7 +9,9 @@
 [![Storage](https://img.shields.io/badge/Walrus-Testnet-00C2A8)](https://docs.wal.app)
 [![Walrus](https://img.shields.io/badge/Walrus-working%20%E2%9C%93-2ea043)](#-walrus-is-live-and-verified)
 
----
+Smart contract deployed
+0x007507dc5c579e5b63f523b69a29043e4cf3898db369cc9f7673a64ff9eb8b4b
+https://suiscan.xyz/testnet/object/0x007507dc5c579e5b63f523b69a29043e4cf3898db369cc9f7673a64ff9eb8b4b/tx-blocks
 
 ## 1. Introduction
 
