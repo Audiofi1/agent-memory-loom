@@ -53,5 +53,4 @@ Copy the **PackageID** and paste it into `src/lib/sui-config.ts`
 (`NARWHAL_PACKAGE_ID`). The in-app deploy and this both work; the app prefers
 whatever was last deployed from the button.
 
-⚠️ Never paste a private key or seed phrase anywhere except your own wallet.
-No one — including this app — ever needs it to deploy.
+
