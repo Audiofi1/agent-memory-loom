@@ -98,8 +98,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@Tusk" },
       { name: "twitter:title", content: "Tusk — Verifiable memory for AI agents" },
       { name: "twitter:description", content: "Tusk is the permanent, verifiable memory backbone for autonomous AI agents — built on Walrus and Sui." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2f904ce9-555a-42f2-b563-4505af6f421f/id-preview-327851e5--e877144f-ecc9-4e98-b389-37783f7e8e92.lovable.app-1782140764001.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2f904ce9-555a-42f2-b563-4505af6f421f/id-preview-327851e5--e877144f-ecc9-4e98-b389-37783f7e8e92.lovable.app-1782140764001.png" },
+      { property: "og:image", content: ogImage.url },
+      { name: "twitter:image", content: ogImage.url },
     ],
     links: [
       {
