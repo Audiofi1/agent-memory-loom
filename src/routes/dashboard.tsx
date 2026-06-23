@@ -170,6 +170,76 @@ function Workspace({ owner }: { owner: string }) {
   );
 }
 
+/* ============================ DEPLOY ============================ */
+function DeployCard() {
+  const { publish, account } = useNarwhal();
+  const [busy, setBusy] = useState(false);
+  const deployed = isDeployed();
+  const pkg = getPackageId();
+
+  const onDeploy = async () => {
+    if (!account) return toast.error("Connect your wallet first");
+    setBusy(true);
+    try {
+      toast.loading("Publishing contract to Sui testnet…", { id: "deploy" });
+      const id = await publish();
+      toast.success("Contract live on Sui testnet 🎉", {
+        id: "deploy",
+        description: `Package ${id.slice(0, 18)}…`,
+      });
+    } catch (e: any) {
+      toast.error("Deploy failed", { id: "deploy", description: e?.message ?? "Try again" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (deployed) {
+    return (
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-teal/40 bg-teal/5 p-5">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal/15">
+            <CheckCircle2 className="h-5 w-5 text-teal" />
+          </span>
+          <div>
+            <p className="font-semibold">Smart contract deployed</p>
+            <p className="font-mono text-xs text-muted-foreground">{pkg}</p>
+          </div>
+        </div>
+        <a
+          href={`${SUI_EXPLORER}/object/${pkg}`}
+          target="_blank"
+          rel="noreferrer"
+          className="btn-ghost"
+        >
+          <ExternalLink className="h-4 w-4" /> View on Suiscan
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber/40 bg-amber/5 p-5">
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber/15">
+          <Rocket className="h-5 w-5 text-amber" />
+        </span>
+        <div>
+          <p className="font-semibold">Deploy the on-chain contract</p>
+          <p className="text-sm text-muted-foreground">
+            One click — published & paid for by your connected wallet. No CLI, no private keys.
+          </p>
+        </div>
+      </div>
+      <button onClick={onDeploy} disabled={busy} className="btn-primary disabled:opacity-60">
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
+        {busy ? "Deploying…" : "Deploy to testnet"}
+      </button>
+    </div>
+  );
+}
+
+
 /* ============================ AGENTS ============================ */
 function AgentsPanel({ owner, agents, onOpen }: { owner: string; agents: Agent[]; onOpen: (id: string) => void }) {
   const [name, setName] = useState("");
