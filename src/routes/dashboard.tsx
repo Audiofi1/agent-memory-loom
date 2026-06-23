@@ -694,7 +694,11 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
           <Field label="Description">
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Shared trading signals for partner agents." />
           </Field>
-          <button onClick={create} className="btn-primary w-full"><Plus className="h-4 w-4" /> Create pool</button>
+          <button onClick={create} disabled={busy} className="btn-primary w-full disabled:opacity-60">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            {busy ? "Creating…" : deployed ? "Create pool on-chain" : "Create pool"}
+          </button>
+
         </div>
       </Panel>
 
