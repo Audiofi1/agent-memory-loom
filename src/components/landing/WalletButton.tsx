@@ -20,10 +20,16 @@ function truncate(addr: string) {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
-/** Only surface Sui-native wallets — never Phantom / EVM injectors. */
+/** Only surface Sui-native wallets — never Phantom / EVM injectors. Dedupe by name. */
 function useSuiWallets() {
   const wallets = useWallets();
-  return wallets.filter((w) => !/phantom|metamask|coinbase/i.test(w.name));
+  const seen = new Set<string>();
+  return wallets.filter((w) => {
+    if (/phantom|metamask|coinbase|rabby|okx/i.test(w.name)) return false;
+    if (seen.has(w.name)) return false;
+    seen.add(w.name);
+    return true;
+  });
 }
 
 function WalletDialog({
