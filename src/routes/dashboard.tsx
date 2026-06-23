@@ -40,6 +40,9 @@ import { db, type Agent, type Snapshot } from "@/lib/store";
 import { useTuskSync } from "@/lib/useTusk";
 import { storeBlob, readBlob, walrusBlobUrl, sha256Hex } from "@/lib/walrus";
 import { SUI_EXPLORER } from "@/lib/sui-config";
+import { getPackageId, isDeployed } from "@/lib/chain";
+import { useNarwhal } from "@/lib/useNarwhal";
+import { Rocket } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
@@ -120,6 +123,8 @@ function Workspace({ owner }: { owner: string }) {
         <p className="mt-2 text-muted-foreground">Register agents, write verifiable memory, and share it under access rules.</p>
       </div>
 
+      <DeployCard />
+
       <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="rounded-2xl border border-border bg-card p-5">
@@ -131,6 +136,7 @@ function Workspace({ owner }: { owner: string }) {
           </div>
         ))}
       </div>
+
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-8 flex h-auto flex-wrap gap-1 bg-secondary/40 p-1">
@@ -164,17 +170,107 @@ function Workspace({ owner }: { owner: string }) {
   );
 }
 
+/* ============================ DEPLOY ============================ */
+function DeployCard() {
+  const { publish, account } = useNarwhal();
+  const [busy, setBusy] = useState(false);
+  const deployed = isDeployed();
+  const pkg = getPackageId();
+
+  const onDeploy = async () => {
+    if (!account) return toast.error("Connect your wallet first");
+    setBusy(true);
+    try {
+      toast.loading("Publishing contract to Sui testnet…", { id: "deploy" });
+      const id = await publish();
+      toast.success("Contract live on Sui testnet 🎉", {
+        id: "deploy",
+        description: `Package ${id.slice(0, 18)}…`,
+      });
+    } catch (e: any) {
+      toast.error("Deploy failed", { id: "deploy", description: e?.message ?? "Try again" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (deployed) {
+    return (
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-teal/40 bg-teal/5 p-5">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal/15">
+            <CheckCircle2 className="h-5 w-5 text-teal" />
+          </span>
+          <div>
+            <p className="font-semibold">Smart contract deployed</p>
+            <p className="font-mono text-xs text-muted-foreground">{pkg}</p>
+          </div>
+        </div>
+        <a
+          href={`${SUI_EXPLORER}/object/${pkg}`}
+          target="_blank"
+          rel="noreferrer"
+          className="btn-ghost"
+        >
+          <ExternalLink className="h-4 w-4" /> View on Suiscan
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber/40 bg-amber/5 p-5">
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber/15">
+          <Rocket className="h-5 w-5 text-amber" />
+        </span>
+        <div>
+          <p className="font-semibold">Deploy the on-chain contract</p>
+          <p className="text-sm text-muted-foreground">
+            One click — published & paid for by your connected wallet. No CLI, no private keys.
+          </p>
+        </div>
+      </div>
+      <button onClick={onDeploy} disabled={busy} className="btn-primary disabled:opacity-60">
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
+        {busy ? "Deploying…" : "Deploy to testnet"}
+      </button>
+    </div>
+  );
+}
+
+
 /* ============================ AGENTS ============================ */
 function AgentsPanel({ owner, agents, onOpen }: { owner: string; agents: Agent[]; onOpen: (id: string) => void }) {
   const [name, setName] = useState("");
   const [purpose, setPurpose] = useState("");
+  const [busy, setBusy] = useState(false);
+  const { registerAgent } = useNarwhal();
+  const deployed = isDeployed();
 
-  const register = () => {
+  const register = async () => {
     if (!name.trim()) return toast.error("Give your agent a name");
-    db.addAgent({ owner, name: name.trim(), purpose: purpose.trim() });
-    toast.success(`Agent “${name.trim()}” registered`, { description: "Identity bound to your wallet." });
-    setName("");
-    setPurpose("");
+    setBusy(true);
+    try {
+      if (deployed) {
+        toast.loading("Registering agent on-chain…", { id: "agent" });
+        const { objectId, digest } = await registerAgent(name.trim(), purpose.trim() || "agent");
+        db.addAgent({ id: objectId, owner, name: name.trim(), purpose: purpose.trim(), onChainId: objectId, txDigest: digest });
+        toast.success(`Agent “${name.trim()}” registered on-chain`, {
+          id: "agent",
+          description: `Identity object ${objectId.slice(0, 14)}…`,
+        });
+      } else {
+        db.addAgent({ owner, name: name.trim(), purpose: purpose.trim() });
+        toast.success(`Agent “${name.trim()}” registered`, { description: "Deploy the contract to anchor it on-chain." });
+      }
+      setName("");
+      setPurpose("");
+    } catch (e: any) {
+      toast.error("Registration failed", { id: "agent", description: e?.message ?? "Try again" });
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -192,11 +288,13 @@ function AgentsPanel({ owner, agents, onOpen }: { owner: string; agents: Agent[]
               rows={3}
             />
           </Field>
-          <button onClick={register} className="btn-primary w-full">
-            <Plus className="h-4 w-4" /> Register agent
+          <button onClick={register} disabled={busy} className="btn-primary w-full disabled:opacity-60">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            {busy ? "Registering…" : deployed ? "Register agent on-chain" : "Register agent"}
           </button>
         </div>
       </Panel>
+
 
       <div>
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">Your agents</h3>
@@ -306,6 +404,7 @@ function SnapshotComposer({
   const [privateNote, setPrivateNote] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [busy, setBusy] = useState(false);
+  const { anchorSnapshot } = useNarwhal();
 
   const submit = async () => {
     if (!title.trim() || !decision.trim()) return toast.error("Title and decision are required");
@@ -325,6 +424,20 @@ function SnapshotComposer({
       toast.loading("Writing to Walrus…", { id: "store" });
       const result = await storeBlob(content);
       toast.success("Stored on Walrus", { id: "store", description: `Blob ${result.blobId.slice(0, 18)}…` });
+
+      // If deployed and we have an on-chain agent + a pool to anchor against, bind it on-chain.
+      let txDigest: string | undefined;
+      const pool = db.pools(owner).find((p) => p.ownerAgentId === agent.id && p.onChainId);
+      if (isDeployed() && agent.onChainId && pool?.onChainId) {
+        try {
+          toast.loading("Anchoring on-chain…", { id: "anchor" });
+          txDigest = await anchorSnapshot(agent.onChainId, pool.onChainId, result.blobId, hash, isPrivate);
+          toast.success("Anchored on Sui", { id: "anchor", description: `Tx ${txDigest.slice(0, 14)}…` });
+        } catch (e: any) {
+          toast.error("On-chain anchor skipped", { id: "anchor", description: e?.message ?? "Stored on Walrus only" });
+        }
+      }
+
       db.addSnapshot({
         agentId: agent.id,
         owner,
@@ -336,6 +449,7 @@ function SnapshotComposer({
         blobId: result.blobId,
         hash,
         endEpoch: result.endEpoch,
+        txDigest,
       });
       setTitle("");
       setDecision("");
@@ -348,6 +462,7 @@ function SnapshotComposer({
       setBusy(false);
     }
   };
+
 
   return (
     <Panel title="Write a memory snapshot" subtitle="Stored as a permanent, content-addressed blob on Walrus.">
@@ -500,14 +615,60 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
   const [description, setDescription] = useState("");
   const [ownerAgentId, setOwnerAgentId] = useState(agents[0]?.id ?? "");
   const [readerId, setReaderId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const { createPool, authorizeReader, revokeReader } = useNarwhal();
+  const deployed = isDeployed();
 
-  const create = () => {
+  const create = async () => {
     if (!name.trim()) return toast.error("Name the pool");
     if (!ownerAgentId) return toast.error("Pick an owning agent");
-    db.addPool({ owner, ownerAgentId, name: name.trim(), description: description.trim() });
-    toast.success(`Pool “${name.trim()}” created`);
-    setName("");
-    setDescription("");
+    setBusy(true);
+    try {
+      const ownerAgent = agents.find((a) => a.id === ownerAgentId);
+      if (deployed && ownerAgent?.onChainId) {
+        toast.loading("Creating pool on-chain…", { id: "pool" });
+        const { objectId } = await createPool(ownerAgent.onChainId, name.trim());
+        db.addPool({ id: objectId, owner, ownerAgentId, name: name.trim(), description: description.trim(), onChainId: objectId });
+        toast.success(`Pool “${name.trim()}” created on-chain`, { id: "pool", description: `Object ${objectId.slice(0, 14)}…` });
+      } else {
+        db.addPool({ owner, ownerAgentId, name: name.trim(), description: description.trim() });
+        toast.success(`Pool “${name.trim()}” created`);
+      }
+      setName("");
+      setDescription("");
+    } catch (e: any) {
+      toast.error("Pool creation failed", { id: "pool", description: e?.message ?? "Try again" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const authorize = async (pool: (typeof pools)[number], reader: string) => {
+    try {
+      if (deployed && pool.onChainId && /^0x[a-fA-F0-9]+$/.test(reader)) {
+        toast.loading("Authorizing reader on-chain…", { id: "auth" });
+        await authorizeReader(pool.onChainId, reader);
+        toast.success("Reader authorized on-chain", { id: "auth" });
+      } else {
+        toast.success("Reader authorized");
+      }
+      db.setReader(pool.id, reader, true);
+    } catch (e: any) {
+      toast.error("Authorize failed", { id: "auth", description: e?.message ?? "Try again" });
+    }
+  };
+
+  const revoke = async (pool: (typeof pools)[number], reader: string) => {
+    try {
+      if (deployed && pool.onChainId && /^0x[a-fA-F0-9]+$/.test(reader)) {
+        toast.loading("Revoking reader on-chain…", { id: "rev" });
+        await revokeReader(pool.onChainId, reader);
+        toast.success("Reader revoked on-chain", { id: "rev" });
+      }
+      db.setReader(pool.id, reader, false);
+    } catch (e: any) {
+      toast.error("Revoke failed", { id: "rev", description: e?.message ?? "Try again" });
+    }
   };
 
   const query = (poolId: string, poolName: string, ownerAgentId: string) => {
@@ -515,6 +676,7 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
     const count = db.snapshots(ownerAgentId).length;
     toast.success(`Queried ${poolName}`, { description: `${count} shared snapshots returned. Logged to access log.` });
   };
+
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
@@ -532,7 +694,11 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
           <Field label="Description">
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Shared trading signals for partner agents." />
           </Field>
-          <button onClick={create} className="btn-primary w-full"><Plus className="h-4 w-4" /> Create pool</button>
+          <button onClick={create} disabled={busy} className="btn-primary w-full disabled:opacity-60">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            {busy ? "Creating…" : deployed ? "Create pool on-chain" : "Create pool"}
+          </button>
+
         </div>
       </Panel>
 
@@ -561,7 +727,7 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
                     {p.readers.map((r) => (
                       <span key={r} className="flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-3 py-1 font-mono text-xs">
                         {r.slice(0, 12)}…
-                        <button onClick={() => db.setReader(p.id, r, false)} className="text-destructive hover:underline">revoke</button>
+                        <button onClick={() => revoke(p, r)} className="text-destructive hover:underline">revoke</button>
                       </span>
                     ))}
                   </div>
@@ -571,8 +737,7 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
                   <button
                     onClick={() => {
                       if (!readerId.trim()) return toast.error("Enter an agent id");
-                      db.setReader(p.id, readerId.trim(), true);
-                      toast.success("Reader authorized");
+                      authorize(p, readerId.trim());
                       setReaderId("");
                     }}
                     className="btn-primary shrink-0"
@@ -580,15 +745,17 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
                     Authorize
                   </button>
                 </div>
+
                 {agents.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
                     {agents.map((a) => (
-                      <button key={a.id} onClick={() => { db.setReader(p.id, a.id, true); toast.success(`${a.name} authorized`); }} className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground">
+                      <button key={a.id} onClick={() => authorize(p, a.id)} className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground">
                         + {a.name}
                       </button>
                     ))}
                   </div>
                 )}
+
               </div>
             </div>
           ))

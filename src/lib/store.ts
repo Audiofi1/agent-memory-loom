@@ -11,6 +11,8 @@ export type Agent = {
   owner: string;
   name: string;
   purpose: string;
+  onChainId?: string; // Sui object id of the AgentIdentity (when deployed)
+  txDigest?: string;
   createdAt: number;
 };
 
@@ -26,6 +28,7 @@ export type Snapshot = {
   blobId: string;
   hash: string;
   endEpoch?: number;
+  txDigest?: string; // on-chain anchor digest (when anchored)
   createdAt: number;
 };
 
@@ -36,6 +39,7 @@ export type Pool = {
   name: string;
   description: string;
   readers: string[]; // authorized agent ids
+  onChainId?: string; // Sui object id of the MemoryPool (when deployed)
   createdAt: number;
 };
 
@@ -94,23 +98,23 @@ export const db = {
     return d.access.filter((e) => myPools.has(e.poolId)).sort((a, b) => b.at - a.at);
   },
 
-  addAgent(a: Omit<Agent, "id" | "createdAt">) {
+  addAgent(a: Omit<Agent, "id" | "createdAt"> & { id?: string }) {
     const d = read();
-    const agent: Agent = { ...a, id: uid(), createdAt: Date.now() };
+    const agent: Agent = { ...a, id: a.id ?? uid(), createdAt: Date.now() };
     d.agents.push(agent);
     write(d);
     return agent;
   },
-  addSnapshot(s: Omit<Snapshot, "id" | "createdAt">) {
+  addSnapshot(s: Omit<Snapshot, "id" | "createdAt"> & { id?: string }) {
     const d = read();
-    const snap: Snapshot = { ...s, id: uid(), createdAt: Date.now() };
+    const snap: Snapshot = { ...s, id: s.id ?? uid(), createdAt: Date.now() };
     d.snapshots.push(snap);
     write(d);
     return snap;
   },
-  addPool(p: Omit<Pool, "id" | "createdAt" | "readers">) {
+  addPool(p: Omit<Pool, "id" | "createdAt" | "readers"> & { id?: string }) {
     const d = read();
-    const pool: Pool = { ...p, readers: [], id: uid(), createdAt: Date.now() };
+    const pool: Pool = { ...p, readers: [], id: p.id ?? uid(), createdAt: Date.now() };
     d.pools.push(pool);
     write(d);
     return pool;
