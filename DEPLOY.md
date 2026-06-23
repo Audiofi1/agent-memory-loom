@@ -1,9 +1,5 @@
-# Deploying Narwhal — the easy way (no CLI, no private keys)
 
-You do **not** need to install anything or share any keys. The smart contract
-is already compiled and bundled into the app.
 
-## One-click deploy (recommended)
 
 1. Open the app and click **Connect Wallet** → choose **Slush**.
 2. Make sure your Slush wallet is on **Testnet** and has some testnet SUI
