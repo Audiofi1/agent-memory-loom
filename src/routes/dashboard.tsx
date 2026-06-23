@@ -861,6 +861,144 @@ function AccessLogPanel({ owner }: { owner: string }) {
   );
 }
 
+/* ============================ CONTRACT ============================ */
+function ContractPanel({ owner, agents, pools }: { owner: string; agents: Agent[]; pools: ReturnType<typeof db.pools> }) {
+  const deployed = isDeployed();
+  const pkg = getPackageId();
+
+  const functions = [
+    { sig: "register_agent(name, kind, clock)", desc: "Mints an AgentIdentity object owned by the caller." },
+    { sig: "create_memory_pool(agent, name)", desc: "Creates a shareable MemoryPool tied to an agent." },
+    { sig: "authorize_reader(pool, reader)", desc: "Adds an address to a pool's on-chain reader allowlist." },
+    { sig: "revoke_reader(pool, reader)", desc: "Removes an address from the allowlist." },
+    { sig: "anchor_snapshot(agent, pool, blob_id, hash, has_private, clock)", desc: "Binds a Walrus blob id + SHA-256 hash on-chain." },
+    { sig: "log_access(pool, blob_id, clock)", desc: "Records an authorized read in the audit log." },
+  ];
+
+  const onChainAgents = agents.filter((a) => a.onChainId);
+  const onChainPools = pools.filter((p) => p.onChainId);
+
+  return (
+    <div className="space-y-6">
+      <Panel title="Network & deployment" subtitle="Everything below is live on public infrastructure — no private keys held by this app.">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <InfoRow k="Sui network" v="Testnet" link={SUI_EXPLORER} />
+          <InfoRow k="Move module" v={`${NARWHAL_MODULE}`} />
+          <InfoRow k="Walrus publisher" v={WALRUS_PUBLISHER} link={WALRUS_PUBLISHER} />
+          <InfoRow k="Walrus aggregator" v={WALRUS_AGGREGATOR} link={WALRUS_AGGREGATOR} />
+        </div>
+
+        <div className="mt-5 rounded-xl border border-border bg-secondary/30 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Package ID</p>
+          {deployed ? (
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <code className="break-all rounded-md bg-background px-2 py-1 font-mono text-xs">{pkg}</code>
+              <CopyButton value={pkg} />
+              <a href={explorer.object(pkg)} target="_blank" rel="noreferrer" className="btn-ghost">
+                <ExternalLink className="h-4 w-4" /> Suiscan
+              </a>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Not deployed in this browser yet. Click <span className="text-foreground">Deploy to testnet</span> above, then your
+              package id and explorer link appear here.
+            </p>
+          )}
+        </div>
+      </Panel>
+
+      <Panel title="Entry functions" subtitle={`Public Move calls in ${NARWHAL_MODULE}::${NARWHAL_MODULE}.`}>
+        <div className="space-y-2">
+          {functions.map((f) => (
+            <div key={f.sig} className="rounded-xl border border-border bg-secondary/20 p-3">
+              <code className="font-mono text-xs text-teal">{f.sig}</code>
+              <p className="mt-1 text-sm text-muted-foreground">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Your on-chain objects" subtitle="Agent identities and pools you own, with direct explorer links.">
+        {onChainAgents.length === 0 && onChainPools.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nothing anchored on-chain yet. Deploy the contract, then register an agent / create a pool to mint real Sui objects.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {onChainAgents.map((a) => (
+              <ObjectRow key={a.id} icon={Bot} label={a.name} id={a.onChainId!} kind="AgentIdentity" />
+            ))}
+            {onChainPools.map((p) => (
+              <ObjectRow key={p.id} icon={Share2} label={p.name} id={p.onChainId!} kind="MemoryPool" />
+            ))}
+          </div>
+        )}
+        <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+          <KeyRound className="h-3.5 w-3.5" /> Owner wallet:{" "}
+          <a href={explorer.account(owner)} target="_blank" rel="noreferrer" className="font-mono text-teal hover:underline">
+            {owner.slice(0, 16)}…
+          </a>
+        </p>
+      </Panel>
+    </div>
+  );
+}
+
+function InfoRow({ k, v, link }: { k: string; v: string; link?: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-secondary/20 p-3">
+      <p className="text-xs uppercase tracking-wider text-muted-foreground">{k}</p>
+      {link ? (
+        <a href={link} target="_blank" rel="noreferrer" className="mt-1 block break-all font-mono text-xs text-teal hover:underline">
+          {v}
+        </a>
+      ) : (
+        <p className="mt-1 break-all font-mono text-xs">{v}</p>
+      )}
+    </div>
+  );
+}
+
+function ObjectRow({ icon: Icon, label, id, kind }: { icon: any; label: string; id: string; kind: string }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-secondary/20 p-3">
+      <div className="flex items-center gap-3">
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card">
+          <Icon className="h-4 w-4 text-teal" />
+        </span>
+        <div>
+          <p className="font-semibold">{label}</p>
+          <p className="font-mono text-xs text-muted-foreground">{kind} · {id.slice(0, 18)}…</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <CopyButton value={id} />
+        <a href={explorer.object(id)} target="_blank" rel="noreferrer" className="btn-ghost">
+          <ExternalLink className="h-4 w-4" /> Suiscan
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => {
+        navigator.clipboard.writeText(value);
+        setCopied(true);
+        toast.success("Copied");
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      className="btn-ghost"
+    >
+      {copied ? <Check className="h-4 w-4 text-teal" /> : <Copy className="h-4 w-4" />}
+      {copied ? "Copied" : "Copy"}
+    </button>
+  );
+}
+
 /* ============================ SHARED UI ============================ */
 function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
