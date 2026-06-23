@@ -615,14 +615,60 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
   const [description, setDescription] = useState("");
   const [ownerAgentId, setOwnerAgentId] = useState(agents[0]?.id ?? "");
   const [readerId, setReaderId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const { createPool, authorizeReader, revokeReader } = useNarwhal();
+  const deployed = isDeployed();
 
-  const create = () => {
+  const create = async () => {
     if (!name.trim()) return toast.error("Name the pool");
     if (!ownerAgentId) return toast.error("Pick an owning agent");
-    db.addPool({ owner, ownerAgentId, name: name.trim(), description: description.trim() });
-    toast.success(`Pool “${name.trim()}” created`);
-    setName("");
-    setDescription("");
+    setBusy(true);
+    try {
+      const ownerAgent = agents.find((a) => a.id === ownerAgentId);
+      if (deployed && ownerAgent?.onChainId) {
+        toast.loading("Creating pool on-chain…", { id: "pool" });
+        const { objectId } = await createPool(ownerAgent.onChainId, name.trim());
+        db.addPool({ id: objectId, owner, ownerAgentId, name: name.trim(), description: description.trim(), onChainId: objectId });
+        toast.success(`Pool “${name.trim()}” created on-chain`, { id: "pool", description: `Object ${objectId.slice(0, 14)}…` });
+      } else {
+        db.addPool({ owner, ownerAgentId, name: name.trim(), description: description.trim() });
+        toast.success(`Pool “${name.trim()}” created`);
+      }
+      setName("");
+      setDescription("");
+    } catch (e: any) {
+      toast.error("Pool creation failed", { id: "pool", description: e?.message ?? "Try again" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const authorize = async (pool: (typeof pools)[number], reader: string) => {
+    try {
+      if (deployed && pool.onChainId && /^0x[a-fA-F0-9]+$/.test(reader)) {
+        toast.loading("Authorizing reader on-chain…", { id: "auth" });
+        await authorizeReader(pool.onChainId, reader);
+        toast.success("Reader authorized on-chain", { id: "auth" });
+      } else {
+        toast.success("Reader authorized");
+      }
+      db.setReader(pool.id, reader, true);
+    } catch (e: any) {
+      toast.error("Authorize failed", { id: "auth", description: e?.message ?? "Try again" });
+    }
+  };
+
+  const revoke = async (pool: (typeof pools)[number], reader: string) => {
+    try {
+      if (deployed && pool.onChainId && /^0x[a-fA-F0-9]+$/.test(reader)) {
+        toast.loading("Revoking reader on-chain…", { id: "rev" });
+        await revokeReader(pool.onChainId, reader);
+        toast.success("Reader revoked on-chain", { id: "rev" });
+      }
+      db.setReader(pool.id, reader, false);
+    } catch (e: any) {
+      toast.error("Revoke failed", { id: "rev", description: e?.message ?? "Try again" });
+    }
   };
 
   const query = (poolId: string, poolName: string, ownerAgentId: string) => {
@@ -630,6 +676,7 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
     const count = db.snapshots(ownerAgentId).length;
     toast.success(`Queried ${poolName}`, { description: `${count} shared snapshots returned. Logged to access log.` });
   };
+
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
