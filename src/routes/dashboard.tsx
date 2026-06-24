@@ -839,6 +839,7 @@ function SnapshotDialog({ snapshot, onClose }: { snapshot: Snapshot | null; onCl
           onClose();
           setState("idle");
           setFetched(null);
+          setRevealed(null);
         }
       }}
     >
