@@ -56,6 +56,7 @@ import {
 import { db, type Agent, type Snapshot } from "@/lib/store";
 import { useTuskSync } from "@/lib/useTusk";
 import { storeBlob, readBlob, walrusBlobUrl, sha256Hex } from "@/lib/walrus";
+import { generateSealKey, sealPrivateNote, unsealPrivateNote } from "@/lib/seal";
 import {
   SUI_EXPLORER,
   WALRUS_PUBLISHER,
@@ -639,15 +640,21 @@ function SnapshotComposer({
     if (!title.trim() || !decision.trim()) return toast.error("Title and decision are required");
     setBusy(true);
     try {
+      // Real client-side encryption: private fields are AES-256-GCM encrypted
+      // before they ever touch the public Walrus network. The key is generated
+      // locally and kept by the owner — only ciphertext is uploaded.
+      let sealKey: string | undefined;
+      let sealedNote = privateNote.trim();
+      if (isPrivate && privateNote.trim()) {
+        sealKey = await generateSealKey();
+        sealedNote = await sealPrivateNote(privateNote.trim(), sealKey);
+      }
       const payload = {
         agent: agent.id,
         title: title.trim(),
         decision: decision.trim(),
         reasoning: reasoning.trim(),
-        // private fields are "sealed" — masked in the stored blob unless authorized
-        privateNote: isPrivate
-          ? `__sealed__:${btoa(unescape(encodeURIComponent(privateNote)))}`
-          : privateNote.trim(),
+        privateNote: sealedNote,
         ts: Date.now(),
       };
       const content = JSON.stringify(payload);
@@ -691,6 +698,7 @@ function SnapshotComposer({
         decision: decision.trim(),
         reasoning: reasoning.trim(),
         privateNote: privateNote.trim() || undefined,
+        sealKey,
         isPrivate,
         blobId: result.blobId,
         hash,
@@ -786,6 +794,19 @@ function SnapshotComposer({
 function SnapshotDialog({ snapshot, onClose }: { snapshot: Snapshot | null; onClose: () => void }) {
   const [state, setState] = useState<"idle" | "verifying" | "ok" | "fail">("idle");
   const [fetched, setFetched] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState<string | null>(null);
+
+  const reveal = async () => {
+    if (!snapshot?.sealKey) return;
+    try {
+      const raw = await readBlob(snapshot.blobId);
+      const sealedField = (JSON.parse(raw) as { privateNote?: string }).privateNote ?? "";
+      const plain = await unsealPrivateNote(sealedField, snapshot.sealKey);
+      setRevealed(plain);
+    } catch (e: unknown) {
+      toast.error("Could not decrypt sealed field", { description: errorMessage(e) });
+    }
+  };
 
   const verify = async () => {
     if (!snapshot) return;
@@ -818,6 +839,7 @@ function SnapshotDialog({ snapshot, onClose }: { snapshot: Snapshot | null; onCl
           onClose();
           setState("idle");
           setFetched(null);
+          setRevealed(null);
         }
       }}
     >
@@ -842,15 +864,31 @@ function SnapshotDialog({ snapshot, onClose }: { snapshot: Snapshot | null; onCl
               {snapshot.isPrivate ? (
                 <div className="rounded-lg border border-amber/40 bg-amber/5 p-3">
                   <p className="flex items-center gap-2 text-amber">
-                    <Lock className="h-4 w-4" /> Sealed field
+                    <Lock className="h-4 w-4" /> Sealed field (AES-256-GCM)
                   </p>
-                  <p className="mt-1 font-mono text-xs text-muted-foreground">
-                    {snapshot.privateNote
-                      ? "•••••••••••••••• (decryptable by authorized readers only)"
-                      : "—"}
-                  </p>
+                  {revealed !== null ? (
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{revealed}</p>
+                  ) : (
+                    <>
+                      <p className="mt-1 font-mono text-xs text-muted-foreground">
+                        {snapshot.privateNote
+                          ? "•••••••••••••••• (encrypted on Walrus — key held locally by the owner)"
+                          : "—"}
+                      </p>
+                      {snapshot.privateNote && snapshot.sealKey ? (
+                        <button
+                          onClick={reveal}
+                          className="btn-ghost mt-2 text-xs"
+                          type="button"
+                        >
+                          <Unlock className="h-3.5 w-3.5" /> Decrypt with my key
+                        </button>
+                      ) : null}
+                    </>
+                  )}
                 </div>
               ) : null}
+
 
               <div className="space-y-2 rounded-lg border border-border bg-secondary/30 p-3 font-mono text-xs">
                 <KV k="Walrus blob" v={snapshot.blobId} />
