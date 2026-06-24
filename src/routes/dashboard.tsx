@@ -42,6 +42,17 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { db, type Agent, type Snapshot } from "@/lib/store";
 import { useTuskSync } from "@/lib/useTusk";
 import { storeBlob, readBlob, walrusBlobUrl, sha256Hex } from "@/lib/walrus";
@@ -406,11 +417,22 @@ function AgentsPanel({
   const [name, setName] = useState("");
   const [purpose, setPurpose] = useState("");
   const [busy, setBusy] = useState(false);
+  const [touched, setTouched] = useState(false);
   const { registerAgent } = useNarwhal();
   const deployed = isDeployed();
 
+  const NAME_MAX = 60;
+  const PURPOSE_MAX = 280;
+  const trimmedName = name.trim();
+  const nameError = !trimmedName
+    ? "Give your agent a name"
+    : trimmedName.length > NAME_MAX
+      ? `Keep the name under ${NAME_MAX} characters`
+      : "";
+
   const register = async () => {
-    if (!name.trim()) return toast.error("Give your agent a name");
+    setTouched(true);
+    if (nameError) return toast.error(nameError);
     setBusy(true);
     try {
       if (deployed) {
@@ -436,6 +458,7 @@ function AgentsPanel({
       }
       setName("");
       setPurpose("");
+      setTouched(false);
     } catch (e: unknown) {
       toast.error("Registration failed", {
         id: "agent",
@@ -454,8 +477,12 @@ function AgentsPanel({
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onBlur={() => setTouched(true)}
               placeholder="Alpha Trading Bot"
+              maxLength={NAME_MAX}
+              aria-invalid={touched && !!nameError}
             />
+            {touched && nameError && <p className="text-xs text-destructive">{nameError}</p>}
           </Field>
           <Field label="Purpose">
             <Textarea
@@ -463,11 +490,12 @@ function AgentsPanel({
               onChange={(e) => setPurpose(e.target.value)}
               placeholder="Executes momentum strategies on SUI/USDC and records every decision."
               rows={3}
+              maxLength={PURPOSE_MAX}
             />
           </Field>
           <button
             onClick={register}
-            disabled={busy}
+            disabled={busy || !trimmedName}
             className="btn-primary w-full disabled:opacity-60"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
@@ -953,12 +981,21 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
 
   const revoke = async (pool: (typeof pools)[number], reader: string) => {
     try {
-      if (deployed && pool.onChainId && /^0x[a-fA-F0-9]+$/.test(reader)) {
+      const onChain = deployed && pool.onChainId && /^0x[a-fA-F0-9]+$/.test(reader);
+      if (onChain) {
         toast.loading("Revoking reader on-chain…", { id: "rev" });
-        await revokeReader(pool.onChainId, reader);
-        toast.success("Reader revoked on-chain", { id: "rev" });
+        await revokeReader(pool.onChainId!, reader);
       }
       db.setReader(pool.id, reader, false);
+
+      // Verify the revoke actually applied before reporting success: read the
+      // pool back from the store and confirm the reader is no longer authorized.
+      const updated = db.all().pools.find((p) => p.id === pool.id);
+      if (updated?.readers.includes(reader)) {
+        toast.error("Revoke did not apply — reader still listed", { id: "rev" });
+        return;
+      }
+      toast.success(onChain ? "Reader revoked on-chain" : "Reader access revoked", { id: "rev" });
     } catch (e: unknown) {
       toast.error("Revoke failed", { id: "rev", description: errorMessage(e) ?? "Try again" });
     }
@@ -1066,12 +1103,30 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
                         className="flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-3 py-1 font-mono text-xs"
                       >
                         {r.slice(0, 12)}…
-                        <button
-                          onClick={() => revoke(p, r)}
-                          className="text-destructive hover:underline"
-                        >
-                          revoke
-                        </button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <button className="text-destructive hover:underline">revoke</button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Revoke reader access?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This removes <span className="font-mono">{r.slice(0, 12)}…</span>{" "}
+                                from “{p.name}”. They will no longer be able to read this pool's
+                                memory. You can re-authorize them later.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => revoke(p, r)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Revoke
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </span>
                     ))}
                   </div>
