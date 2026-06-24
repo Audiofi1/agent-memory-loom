@@ -23,7 +23,8 @@ export type Snapshot = {
   title: string;
   decision: string;
   reasoning: string;
-  privateNote?: string; // "encrypted" field
+  privateNote?: string; // plaintext, owner-only local copy
+  sealKey?: string; // base64 AES-256-GCM key for the sealed blob field (owner-held, never uploaded)
   isPrivate: boolean;
   blobId: string;
   hash: string;
