@@ -639,15 +639,21 @@ function SnapshotComposer({
     if (!title.trim() || !decision.trim()) return toast.error("Title and decision are required");
     setBusy(true);
     try {
+      // Real client-side encryption: private fields are AES-256-GCM encrypted
+      // before they ever touch the public Walrus network. The key is generated
+      // locally and kept by the owner — only ciphertext is uploaded.
+      let sealKey: string | undefined;
+      let sealedNote = privateNote.trim();
+      if (isPrivate && privateNote.trim()) {
+        sealKey = await generateSealKey();
+        sealedNote = await sealPrivateNote(privateNote.trim(), sealKey);
+      }
       const payload = {
         agent: agent.id,
         title: title.trim(),
         decision: decision.trim(),
         reasoning: reasoning.trim(),
-        // private fields are "sealed" — masked in the stored blob unless authorized
-        privateNote: isPrivate
-          ? `__sealed__:${btoa(unescape(encodeURIComponent(privateNote)))}`
-          : privateNote.trim(),
+        privateNote: sealedNote,
         ts: Date.now(),
       };
       const content = JSON.stringify(payload);
