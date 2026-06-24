@@ -22,7 +22,9 @@ import appCss from "../styles.css?url";
 import ogImage from "../assets/og-tusk.jpg.asset.json";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SuiProviders } from "../components/providers/SuiProviders";
+import { AuthProvider } from "../lib/auth/AuthProvider";
 import { Toaster } from "../components/ui/sonner";
+import { ThemeProvider, themeInitScript } from "../components/providers/ThemeProvider";
 
 function NotFoundComponent() {
   return (
@@ -90,15 +92,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Tusk — Verifiable memory for AI agents" },
-      { name: "description", content: "Tusk is the permanent, verifiable memory backbone for autonomous AI agents — built on Walrus and Sui." },
+      {
+        name: "description",
+        content:
+          "Tusk is the permanent, verifiable memory backbone for autonomous AI agents — built on Walrus and Sui.",
+      },
       { name: "author", content: "Tusk" },
       { property: "og:title", content: "Tusk — Verifiable memory for AI agents" },
-      { property: "og:description", content: "Tusk is the permanent, verifiable memory backbone for autonomous AI agents — built on Walrus and Sui." },
+      {
+        property: "og:description",
+        content:
+          "Tusk is the permanent, verifiable memory backbone for autonomous AI agents — built on Walrus and Sui.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Tusk" },
       { name: "twitter:title", content: "Tusk — Verifiable memory for AI agents" },
-      { name: "twitter:description", content: "Tusk is the permanent, verifiable memory backbone for autonomous AI agents — built on Walrus and Sui." },
+      {
+        name: "twitter:description",
+        content:
+          "Tusk is the permanent, verifiable memory backbone for autonomous AI agents — built on Walrus and Sui.",
+      },
       { property: "og:image", content: ogImage.url },
       { name: "twitter:image", content: ogImage.url },
     ],
@@ -117,8 +131,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
+        {/* Set the theme class before paint to avoid a light/dark flash. */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <HeadContent />
       </head>
       <body>
@@ -129,16 +145,26 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+import { LoaderProvider } from "../hooks/LoaderContext";
+import { WelcomeLoader } from "../components/ui/WelcomeLoader";
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <SuiProviders>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-        <Toaster />
-      </SuiProviders>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <SuiProviders>
+          <AuthProvider>
+            <LoaderProvider>
+              <WelcomeLoader />
+              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+              <Outlet />
+              <Toaster />
+            </LoaderProvider>
+          </AuthProvider>
+        </SuiProviders>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

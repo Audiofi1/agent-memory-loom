@@ -15,28 +15,26 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-
+import { useAuth } from "@/lib/auth/AuthProvider";
 
 function truncate(addr: string) {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
-// The hosted Slush web wallet registers under this id. We prefer the real
-// browser extension (which opens directly) over the hosted popup fallback,
-// because the popup is blocked when launched from an async callback.
 const SLUSH_WEB_ID = "com.mystenlabs.suiwallet.web";
 
-/** Only surface Sui-native wallets — never Phantom / EVM injectors. Dedupe by
- *  name, preferring an installed browser extension over the hosted web wallet. */
 function useSuiWallets() {
   const wallets = useWallets();
-
-  const sui = wallets.filter(
-    (w) => !/phantom|metamask|coinbase|rabby|okx/i.test(w.name),
-  );
-
-  // Collapse duplicates by name, keeping the extension instance when present.
+  const sui = wallets.filter((w) => !/phantom|metamask|coinbase|rabby|okx/i.test(w.name));
   const byName = new Map<string, (typeof sui)[number]>();
   for (const w of sui) {
     const existing = byName.get(w.name);
@@ -44,12 +42,10 @@ function useSuiWallets() {
       byName.set(w.name, w);
       continue;
     }
-    // Replace a hosted web wallet with a real extension of the same name.
     const existingIsWeb = (existing as { id?: string }).id === SLUSH_WEB_ID;
     const candidateIsWeb = (w as { id?: string }).id === SLUSH_WEB_ID;
     if (existingIsWeb && !candidateIsWeb) byName.set(w.name, w);
   }
-
   return Array.from(byName.values());
 }
 
@@ -134,7 +130,7 @@ function WalletDialog({
   );
 }
 
-/** The pill shown in nav/topbar: connect, or address + disconnect when connected. */
+/** Connect wallet = logged in. Server session seals in the background when possible. */
 export function WalletButton({
   compact = false,
   redirectOnConnect = false,
@@ -143,40 +139,82 @@ export function WalletButton({
   redirectOnConnect?: boolean;
 }) {
   const account = useCurrentAccount();
+  const { signOut } = useAuth();
   const { mutate: disconnect } = useDisconnectWallet();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  async function handleDisconnect() {
+    await signOut().catch(() => undefined);
+    disconnect();
+  }
+
   if (account) {
+    const colorSeed = parseInt(account.address.slice(-4), 16);
+    const hues = ["bg-rose-500", "bg-teal-500", "bg-violet-500", "bg-amber-500", "bg-blue-500"];
+    const avatarColor = hues[colorSeed % hues.length];
+
     return (
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(account.address);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          }}
-          className="group flex items-center gap-2 rounded-full border border-border bg-secondary/60 px-4 py-2 font-mono text-xs text-foreground transition-colors hover:border-primary/60"
+      <DropdownMenu>
+        <DropdownMenuTrigger className="group flex items-center gap-2 rounded-full border border-border bg-secondary/60 py-1.5 pl-1.5 pr-4 transition-colors hover:border-primary/60 outline-none">
+          <div
+            className={`flex h-6 w-6 items-center justify-center rounded-full ${avatarColor} shadow-inner`}
+          >
+            <Wallet className="h-3.5 w-3.5 text-white" />
+          </div>
+          <span className="font-mono text-xs text-foreground tracking-tight">
+            {truncate(account.address)}
+          </span>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="w-56 mt-2 rounded-2xl border-border/60 bg-background/95 backdrop-blur-3xl p-2 shadow-2xl"
         >
-          <span className="h-2 w-2 rounded-full bg-teal animate-pulse-ring" />
-          {truncate(account.address)}
-          {copied ? (
-            <Check className="h-3.5 w-3.5 text-teal" />
-          ) : (
-            <Copy className="h-3.5 w-3.5 opacity-50 group-hover:opacity-100" />
-          )}
-        </button>
-        {!compact && (
-          <button
-            onClick={() => disconnect()}
-            aria-label="Disconnect wallet"
-            className="rounded-full border border-border p-2 text-muted-foreground transition-colors hover:border-destructive/60 hover:text-destructive"
+          <DropdownMenuLabel className="font-light text-muted-foreground text-xs uppercase tracking-widest px-2">
+            Connected
+          </DropdownMenuLabel>
+          <div className="px-2 py-3 flex items-center gap-3">
+            <div
+              className={`flex h-10 w-10 items-center justify-center rounded-full ${avatarColor} shadow-inner`}
+            >
+              <Wallet className="h-5 w-5 text-white" />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-mono text-sm text-foreground">{truncate(account.address)}</span>
+              <span className="text-xs font-light text-teal flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-teal animate-pulse" />
+                Sui Testnet
+              </span>
+            </div>
+          </div>
+          <DropdownMenuSeparator className="bg-border/40" />
+          <DropdownMenuItem
+            className="cursor-pointer font-light gap-2 px-3 py-2.5 rounded-xl hover:bg-secondary/60 transition-colors"
+            onClick={(e) => {
+              e.preventDefault();
+              navigator.clipboard.writeText(account.address);
+              setCopied(true);
+              toast.success("Address copied");
+              setTimeout(() => setCopied(false), 2000);
+            }}
+          >
+            {copied ? (
+              <Check className="h-4 w-4 text-teal" />
+            ) : (
+              <Copy className="h-4 w-4 text-muted-foreground" />
+            )}
+            {copied ? "Copied" : "Copy address"}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="cursor-pointer font-light gap-2 px-3 py-2.5 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors focus:text-destructive focus:bg-destructive/10"
+            onClick={() => void handleDisconnect()}
           >
             <LogOut className="h-4 w-4" />
-          </button>
-        )}
-      </div>
+            Disconnect
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     );
   }
 
@@ -198,7 +236,6 @@ export function WalletButton({
   );
 }
 
-/** Big hero CTA: enters the dashboard if connected, otherwise opens the wallet modal. */
 export function LaunchCta({
   children = "Launch app",
   className = "",
@@ -226,4 +263,3 @@ export function LaunchCta({
     </>
   );
 }
-

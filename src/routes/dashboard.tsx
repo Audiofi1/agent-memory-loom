@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
-import { useCurrentAccount } from "@mysten/dapp-kit";
 import { motion, AnimatePresence } from "motion/react";
+import { useSession } from "@/lib/useSession";
 import { toast } from "sonner";
 import {
   Bot,
@@ -24,6 +24,7 @@ import {
   Copy,
   Check,
   Network,
+  type LucideIcon,
 } from "lucide-react";
 
 import { Logo } from "@/components/landing/Navbar";
@@ -52,6 +53,15 @@ import {
 } from "@/lib/sui-config";
 import { getPackageId, isDeployed, explorer } from "@/lib/chain";
 import { useNarwhal } from "@/lib/useNarwhal";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { useTheme } from "@/components/providers/ThemeProvider";
+
+/** Extract a human-readable message from an unknown thrown value. */
+function errorMessage(e: unknown): string | undefined {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  return undefined;
+}
 
 export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
@@ -59,15 +69,31 @@ export const Route = createFileRoute("/dashboard")({
 
 function Dashboard() {
   useTuskSync();
-  const account = useCurrentAccount();
+  const { account, isInitializing } = useSession();
+  const { theme } = useTheme();
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Toaster theme="dark" position="top-right" />
+      <Toaster theme={theme} position="top-right" />
       <Topbar />
       <main className="mx-auto max-w-7xl px-6 pb-24 pt-28">
-        {!account ? <ConnectGate /> : <Workspace owner={account.address} />}
+        {isInitializing ? (
+          <SessionSpinner message="Restoring your session…" />
+        ) : !account ? (
+          <ConnectGate />
+        ) : (
+          <Workspace owner={account.address} />
+        )}
       </main>
+    </div>
+  );
+}
+
+function SessionSpinner({ message }: { message: string }) {
+  return (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+      <Loader2 className="h-8 w-8 animate-spin text-teal-400" />
+      <p className="mt-4 max-w-md text-muted-foreground animate-pulse">{message}</p>
     </div>
   );
 }
@@ -84,7 +110,10 @@ function Topbar() {
             <span className="h-1.5 w-1.5 rounded-full bg-teal" /> Sui Testnet · Walrus
           </span>
         </div>
-        <WalletButton />
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <WalletButton />
+        </div>
       </div>
     </header>
   );
@@ -99,17 +128,16 @@ function ConnectGate() {
       </div>
       <h1 className="mt-6 text-3xl font-bold">Connect your Sui wallet</h1>
       <p className="mt-3 max-w-md text-muted-foreground">
-        Narwhal uses your wallet as your agents' on-chain identity. Connect a Sui testnet wallet to register agents and
-        write verifiable memory.
+        Narwhal uses your wallet as your agents' on-chain identity. Connect a Sui testnet wallet to
+        register agents and write verifiable memory.
       </p>
       <div className="mt-8">
-        <WalletButton />
+        <WalletButton redirectOnConnect />
       </div>
     </div>
   );
 }
 
-/* ============================ WORKSPACE ============================ */
 function Workspace({ owner }: { owner: string }) {
   const agents = db.agents(owner);
   const pools = db.pools(owner);
@@ -126,105 +154,172 @@ function Workspace({ owner }: { owner: string }) {
   ];
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold tracking-tight">Memory console</h1>
-        <p className="mt-2 text-muted-foreground">Give your agents a permanent, verifiable memory — then share it across agents under explicit access rules.</p>
+    <div className="flex flex-col">
+      <div className="mb-12">
+        <h1 className="text-4xl font-light tracking-tight">Memory Console</h1>
+        <p className="mt-2 font-light text-muted-foreground max-w-2xl">
+          Give your agents a permanent, verifiable memory — then share it securely across networks
+          under explicit cryptographic access rules.
+        </p>
       </div>
 
       <DeployCard />
 
-      <HowItWorks />
-
-      <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
-          <div key={s.label} className="rounded-2xl border border-border bg-card p-5">
+          <div
+            key={s.label}
+            className="group relative overflow-hidden rounded-3xl border border-border/40 bg-card/40 p-6 backdrop-blur-3xl shadow-xl shadow-black/5 transition-all hover:border-primary/40"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-violet-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">{s.label}</span>
-              <s.icon className="h-4 w-4 text-teal" />
+              <span className="text-sm font-light text-muted-foreground tracking-wide">
+                {s.label}
+              </span>
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary/80 shadow-inner">
+                <s.icon className="h-4 w-4 text-teal-400" />
+              </div>
             </div>
-            <div className="mt-3 font-mono text-3xl font-bold">{s.value}</div>
+            <div className="mt-4 font-mono text-4xl font-light text-foreground">{s.value}</div>
           </div>
         ))}
       </div>
 
+      <Tabs value={tab} onValueChange={setTab} className="flex flex-col md:flex-row gap-10">
+        <div className="w-full md:w-64 shrink-0">
+          <div className="sticky top-28 space-y-8">
+            <TabsList className="flex flex-col h-auto bg-transparent items-stretch space-y-2 p-0">
+              <TabsTrigger
+                value="agents"
+                className="justify-start gap-3 px-4 py-3 text-sm font-light data-[state=active]:bg-secondary/60 data-[state=active]:text-teal-400 rounded-2xl border border-transparent data-[state=active]:border-border/40 data-[state=active]:shadow-sm transition-all"
+              >
+                <Bot className="h-4 w-4" />
+                Agents
+              </TabsTrigger>
+              <TabsTrigger
+                value="memory"
+                className="justify-start gap-3 px-4 py-3 text-sm font-light data-[state=active]:bg-secondary/60 data-[state=active]:text-teal-400 rounded-2xl border border-transparent data-[state=active]:border-border/40 data-[state=active]:shadow-sm transition-all"
+              >
+                <Database className="h-4 w-4" />
+                Memory
+              </TabsTrigger>
+              <TabsTrigger
+                value="pools"
+                className="justify-start gap-3 px-4 py-3 text-sm font-light data-[state=active]:bg-secondary/60 data-[state=active]:text-teal-400 rounded-2xl border border-transparent data-[state=active]:border-border/40 data-[state=active]:shadow-sm transition-all"
+              >
+                <Share2 className="h-4 w-4" />
+                Shared pools
+              </TabsTrigger>
+              <TabsTrigger
+                value="log"
+                className="justify-start gap-3 px-4 py-3 text-sm font-light data-[state=active]:bg-secondary/60 data-[state=active]:text-teal-400 rounded-2xl border border-transparent data-[state=active]:border-border/40 data-[state=active]:shadow-sm transition-all"
+              >
+                <ScrollText className="h-4 w-4" />
+                Access log
+              </TabsTrigger>
+              <TabsTrigger
+                value="contract"
+                className="justify-start gap-3 px-4 py-3 text-sm font-light data-[state=active]:bg-secondary/60 data-[state=active]:text-teal-400 rounded-2xl border border-transparent data-[state=active]:border-border/40 data-[state=active]:shadow-sm transition-all"
+              >
+                <FileCode2 className="h-4 w-4" />
+                Contract
+              </TabsTrigger>
+            </TabsList>
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-8 flex h-auto flex-wrap gap-1 bg-secondary/40 p-1">
-          <TabsTrigger value="agents" className="gap-2"><Bot className="h-4 w-4" />Agents</TabsTrigger>
-          <TabsTrigger value="memory" className="gap-2"><Database className="h-4 w-4" />Memory</TabsTrigger>
-          <TabsTrigger value="pools" className="gap-2"><Share2 className="h-4 w-4" />Shared pools</TabsTrigger>
-          <TabsTrigger value="log" className="gap-2"><ScrollText className="h-4 w-4" />Access log</TabsTrigger>
-          <TabsTrigger value="contract" className="gap-2"><FileCode2 className="h-4 w-4" />Contract</TabsTrigger>
-        </TabsList>
+            <div className="hidden md:block">
+              <HowItWorksSidebar />
+            </div>
+          </div>
+        </div>
 
-        <TabsContent value="agents">
-          <AgentsPanel
-            owner={owner}
-            agents={agents}
-            onOpen={(id) => {
-              setSelectedAgentId(id);
-              setTab("memory");
-            }}
-          />
-        </TabsContent>
-        <TabsContent value="memory">
-          <MemoryPanel owner={owner} agents={agents} selectedAgentId={selectedAgentId} onSelect={setSelectedAgentId} />
-        </TabsContent>
-        <TabsContent value="pools">
-          <PoolsPanel owner={owner} agents={agents} />
-        </TabsContent>
-        <TabsContent value="log">
-          <AccessLogPanel owner={owner} />
-        </TabsContent>
-        <TabsContent value="contract">
-          <ContractPanel owner={owner} agents={agents} pools={pools} />
-        </TabsContent>
+        <div className="flex-1 min-w-0">
+          <TabsContent
+            value="agents"
+            className="m-0 focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-700"
+          >
+            <AgentsPanel
+              owner={owner}
+              agents={agents}
+              onOpen={(id) => {
+                setSelectedAgentId(id);
+                setTab("memory");
+              }}
+            />
+          </TabsContent>
+          <TabsContent
+            value="memory"
+            className="m-0 focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-700"
+          >
+            <MemoryPanel
+              owner={owner}
+              agents={agents}
+              selectedAgentId={selectedAgentId}
+              onSelect={setSelectedAgentId}
+            />
+          </TabsContent>
+          <TabsContent
+            value="pools"
+            className="m-0 focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-700"
+          >
+            <PoolsPanel owner={owner} agents={agents} />
+          </TabsContent>
+          <TabsContent
+            value="log"
+            className="m-0 focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-700"
+          >
+            <AccessLogPanel owner={owner} />
+          </TabsContent>
+          <TabsContent
+            value="contract"
+            className="m-0 focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-700"
+          >
+            <ContractPanel owner={owner} agents={agents} pools={pools} />
+          </TabsContent>
+        </div>
       </Tabs>
     </div>
   );
 }
 
 /* ============================ HOW IT WORKS ============================ */
-function HowItWorks() {
-  const steps = [
-    {
-      icon: Bot,
-      title: "1 · Register an agent",
-      body: "Mint a wallet-owned on-chain identity for each bot (trading, research, monitoring). This is the agent's permanent address for memory.",
-    },
-    {
-      icon: Database,
-      title: "2 · Write memory to Walrus",
-      body: "Every decision + reasoning is stored as a content-addressed blob on Walrus and hashed (SHA-256), so it can never be silently altered.",
-    },
-    {
-      icon: Share2,
-      title: "3 · Share & coordinate",
-      body: "Create a pool, authorize another team's agent address, and they read your findings. Each anchor and access is logged on Sui for audit.",
-    },
-  ];
+function HowItWorksSidebar() {
   return (
-    <div className="mb-8 rounded-2xl border border-border bg-card/60 p-6">
-      <div className="mb-4 flex items-center gap-2">
-        <Network className="h-4 w-4 text-teal" />
-        <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">How agents use Narwhal</h2>
+    <div className="rounded-3xl border border-border/40 bg-card/40 backdrop-blur-3xl p-6 shadow-xl shadow-black/5">
+      <div className="mb-6 flex items-center gap-2">
+        <Network className="h-4 w-4 text-teal-400" />
+        <h2 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+          Workflow
+        </h2>
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
-        {steps.map((s) => (
-          <div key={s.title} className="rounded-xl border border-border bg-secondary/30 p-4">
-            <div className="flex items-center gap-2">
-              <s.icon className="h-4 w-4 text-teal" />
-              <p className="font-semibold">{s.title}</p>
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">{s.body}</p>
+      <div className="space-y-6 relative before:absolute before:inset-y-2 before:left-[11px] before:w-px before:bg-border/60">
+        <div className="relative pl-8">
+          <div className="absolute left-0 top-1 h-6 w-6 rounded-full border border-border bg-card flex items-center justify-center z-10 shadow-sm">
+            <span className="text-[10px] font-bold text-teal-400">1</span>
           </div>
-        ))}
+          <p className="font-medium text-sm text-foreground">Register Agent</p>
+          <p className="mt-1 text-xs font-light text-muted-foreground leading-relaxed">
+            Mint an on-chain identity for each AI agent to act on its behalf.
+          </p>
+        </div>
+        <div className="relative pl-8">
+          <div className="absolute left-0 top-1 h-6 w-6 rounded-full border border-border bg-card flex items-center justify-center z-10 shadow-sm">
+            <span className="text-[10px] font-bold text-teal-400">2</span>
+          </div>
+          <p className="font-medium text-sm text-foreground">Write Memory</p>
+          <p className="mt-1 text-xs font-light text-muted-foreground leading-relaxed">
+            Store decisions as hashed blobs on Walrus, forever immutable.
+          </p>
+        </div>
+        <div className="relative pl-8">
+          <div className="absolute left-0 top-1 h-6 w-6 rounded-full border border-border bg-card flex items-center justify-center z-10 shadow-sm">
+            <span className="text-[10px] font-bold text-teal-400">3</span>
+          </div>
+          <p className="font-medium text-sm text-foreground">Share Pools</p>
+          <p className="mt-1 text-xs font-light text-muted-foreground leading-relaxed">
+            Authorize external agents to read findings securely.
+          </p>
+        </div>
       </div>
-      <p className="mt-4 text-xs text-muted-foreground">
-        <span className="text-foreground">Developers</span> get cross-session memory for a single agent (Agents → Memory).{" "}
-        <span className="text-foreground">Teams</span> coordinate multiple agents by sharing pools (Shared pools → Access log).
-      </p>
     </div>
   );
 }
@@ -246,8 +341,8 @@ function DeployCard() {
         id: "deploy",
         description: `Package ${id.slice(0, 18)}…`,
       });
-    } catch (e: any) {
-      toast.error("Deploy failed", { id: "deploy", description: e?.message ?? "Try again" });
+    } catch (e: unknown) {
+      toast.error("Deploy failed", { id: "deploy", description: errorMessage(e) ?? "Try again" });
     } finally {
       setBusy(false);
     }
@@ -298,9 +393,16 @@ function DeployCard() {
   );
 }
 
-
 /* ============================ AGENTS ============================ */
-function AgentsPanel({ owner, agents, onOpen }: { owner: string; agents: Agent[]; onOpen: (id: string) => void }) {
+function AgentsPanel({
+  owner,
+  agents,
+  onOpen,
+}: {
+  owner: string;
+  agents: Agent[];
+  onOpen: (id: string) => void;
+}) {
   const [name, setName] = useState("");
   const [purpose, setPurpose] = useState("");
   const [busy, setBusy] = useState(false);
@@ -314,19 +416,31 @@ function AgentsPanel({ owner, agents, onOpen }: { owner: string; agents: Agent[]
       if (deployed) {
         toast.loading("Registering agent on-chain…", { id: "agent" });
         const { objectId, digest } = await registerAgent(name.trim(), purpose.trim() || "agent");
-        db.addAgent({ id: objectId, owner, name: name.trim(), purpose: purpose.trim(), onChainId: objectId, txDigest: digest });
+        db.addAgent({
+          id: objectId,
+          owner,
+          name: name.trim(),
+          purpose: purpose.trim(),
+          onChainId: objectId,
+          txDigest: digest,
+        });
         toast.success(`Agent “${name.trim()}” registered on-chain`, {
           id: "agent",
           description: `Identity object ${objectId.slice(0, 14)}…`,
         });
       } else {
         db.addAgent({ owner, name: name.trim(), purpose: purpose.trim() });
-        toast.success(`Agent “${name.trim()}” registered`, { description: "Deploy the contract to anchor it on-chain." });
+        toast.success(`Agent “${name.trim()}” registered`, {
+          description: "Deploy the contract to anchor it on-chain.",
+        });
       }
       setName("");
       setPurpose("");
-    } catch (e: any) {
-      toast.error("Registration failed", { id: "agent", description: e?.message ?? "Try again" });
+    } catch (e: unknown) {
+      toast.error("Registration failed", {
+        id: "agent",
+        description: errorMessage(e) ?? "Try again",
+      });
     } finally {
       setBusy(false);
     }
@@ -337,7 +451,11 @@ function AgentsPanel({ owner, agents, onOpen }: { owner: string; agents: Agent[]
       <Panel title="Register an agent" subtitle="Mint a permanent identity tied to your wallet.">
         <div className="space-y-4">
           <Field label="Agent name">
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Alpha Trading Bot" />
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Alpha Trading Bot"
+            />
           </Field>
           <Field label="Purpose">
             <Textarea
@@ -347,18 +465,26 @@ function AgentsPanel({ owner, agents, onOpen }: { owner: string; agents: Agent[]
               rows={3}
             />
           </Field>
-          <button onClick={register} disabled={busy} className="btn-primary w-full disabled:opacity-60">
+          <button
+            onClick={register}
+            disabled={busy}
+            className="btn-primary w-full disabled:opacity-60"
+          >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             {busy ? "Registering…" : deployed ? "Register agent on-chain" : "Register agent"}
           </button>
         </div>
       </Panel>
 
-
       <div>
-        <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">Your agents</h3>
+        <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          Your agents
+        </h3>
         {agents.length === 0 ? (
-          <Empty icon={Bot} text="No agents yet. Register your first one to start writing memory." />
+          <Empty
+            icon={Bot}
+            text="No agents yet. Register your first one to start writing memory."
+          />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {agents.map((a) => (
@@ -374,9 +500,15 @@ function AgentsPanel({ owner, agents, onOpen }: { owner: string; agents: Agent[]
                   <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
                 </div>
                 <h4 className="mt-4 text-lg font-bold">{a.name}</h4>
-                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{a.purpose || "No purpose set"}</p>
-                <p className="mt-3 font-mono text-xs text-muted-foreground/70">{a.id.slice(0, 18)}…</p>
-                <p className="mt-1 text-xs text-muted-foreground">{db.snapshots(a.id).length} snapshots</p>
+                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                  {a.purpose || "No purpose set"}
+                </p>
+                <p className="mt-3 font-mono text-xs text-muted-foreground/70">
+                  {a.id.slice(0, 18)}…
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {db.snapshots(a.id).length} snapshots
+                </p>
               </button>
             ))}
           </div>
@@ -403,7 +535,9 @@ function MemoryPanel({
   const [open, setOpen] = useState<Snapshot | null>(null);
 
   if (!agent) {
-    return <Empty icon={Database} text="Register an agent first, then come back to write its memory." />;
+    return (
+      <Empty icon={Database} text="Register an agent first, then come back to write its memory." />
+    );
   }
 
   return (
@@ -427,13 +561,21 @@ function MemoryPanel({
                 >
                   <div className="flex items-center justify-between gap-3">
                     <h4 className="flex items-center gap-2 font-semibold">
-                      {s.isPrivate ? <Lock className="h-4 w-4 text-amber" /> : <Unlock className="h-4 w-4 text-muted-foreground" />}
+                      {s.isPrivate ? (
+                        <Lock className="h-4 w-4 text-amber" />
+                      ) : (
+                        <Unlock className="h-4 w-4 text-muted-foreground" />
+                      )}
                       {s.title}
                     </h4>
-                    <span className="text-xs text-muted-foreground">{new Date(s.createdAt).toLocaleString()}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(s.createdAt).toLocaleString()}
+                    </span>
                   </div>
                   <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{s.decision}</p>
-                  <p className="mt-3 font-mono text-xs text-teal/80">blob {s.blobId.slice(0, 16)}…</p>
+                  <p className="mt-3 font-mono text-xs text-teal/80">
+                    blob {s.blobId.slice(0, 16)}…
+                  </p>
                 </button>
               </li>
             ))}
@@ -475,14 +617,19 @@ function SnapshotComposer({
         decision: decision.trim(),
         reasoning: reasoning.trim(),
         // private fields are "sealed" — masked in the stored blob unless authorized
-        privateNote: isPrivate ? `__sealed__:${btoa(unescape(encodeURIComponent(privateNote)))}` : privateNote.trim(),
+        privateNote: isPrivate
+          ? `__sealed__:${btoa(unescape(encodeURIComponent(privateNote)))}`
+          : privateNote.trim(),
         ts: Date.now(),
       };
       const content = JSON.stringify(payload);
       const hash = await sha256Hex(content);
       toast.loading("Writing to Walrus…", { id: "store" });
       const result = await storeBlob(content);
-      toast.success("Stored on Walrus", { id: "store", description: `Blob ${result.blobId.slice(0, 18)}…` });
+      toast.success("Stored on Walrus", {
+        id: "store",
+        description: `Blob ${result.blobId.slice(0, 18)}…`,
+      });
 
       // If deployed and we have an on-chain agent + a pool to anchor against, bind it on-chain.
       let txDigest: string | undefined;
@@ -490,10 +637,22 @@ function SnapshotComposer({
       if (isDeployed() && agent.onChainId && pool?.onChainId) {
         try {
           toast.loading("Anchoring on-chain…", { id: "anchor" });
-          txDigest = await anchorSnapshot(agent.onChainId, pool.onChainId, result.blobId, hash, isPrivate);
-          toast.success("Anchored on Sui", { id: "anchor", description: `Tx ${txDigest.slice(0, 14)}…` });
-        } catch (e: any) {
-          toast.error("On-chain anchor skipped", { id: "anchor", description: e?.message ?? "Stored on Walrus only" });
+          txDigest = await anchorSnapshot(
+            agent.onChainId,
+            pool.onChainId,
+            result.blobId,
+            hash,
+            isPrivate,
+          );
+          toast.success("Anchored on Sui", {
+            id: "anchor",
+            description: `Tx ${txDigest.slice(0, 14)}…`,
+          });
+        } catch (e: unknown) {
+          toast.error("On-chain anchor skipped", {
+            id: "anchor",
+            description: errorMessage(e) ?? "Stored on Walrus only",
+          });
         }
       }
 
@@ -515,16 +674,21 @@ function SnapshotComposer({
       setReasoning("");
       setPrivateNote("");
       setIsPrivate(false);
-    } catch (e: any) {
-      toast.error("Walrus write failed", { id: "store", description: e?.message ?? "Try again" });
+    } catch (e: unknown) {
+      toast.error("Walrus write failed", {
+        id: "store",
+        description: errorMessage(e) ?? "Try again",
+      });
     } finally {
       setBusy(false);
     }
   };
 
-
   return (
-    <Panel title="Write a memory snapshot" subtitle="Stored as a permanent, content-addressed blob on Walrus.">
+    <Panel
+      title="Write a memory snapshot"
+      subtitle="Stored as a permanent, content-addressed blob on Walrus."
+    >
       <div className="space-y-4">
         <Field label="Acting agent">
           <select
@@ -533,24 +697,41 @@ function SnapshotComposer({
             className="h-10 w-full rounded-md border border-input bg-secondary/40 px-3 text-sm outline-none focus:border-primary"
           >
             {agents.map((a) => (
-              <option key={a.id} value={a.id}>{a.name}</option>
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
             ))}
           </select>
         </Field>
         <Field label="Title">
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Opened long SUI position" />
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Opened long SUI position"
+          />
         </Field>
         <Field label="Decision">
-          <Textarea value={decision} onChange={(e) => setDecision(e.target.value)} rows={2} placeholder="Bought 1,200 SUI at $3.41" />
+          <Textarea
+            value={decision}
+            onChange={(e) => setDecision(e.target.value)}
+            rows={2}
+            placeholder="Bought 1,200 SUI at $3.41"
+          />
         </Field>
         <Field label="Reasoning">
-          <Textarea value={reasoning} onChange={(e) => setReasoning(e.target.value)} rows={2} placeholder="RSI crossed 30 with rising volume." />
+          <Textarea
+            value={reasoning}
+            onChange={(e) => setReasoning(e.target.value)}
+            rows={2}
+            placeholder="RSI crossed 30 with rising volume."
+          />
         </Field>
 
         <div className="rounded-xl border border-border bg-secondary/30 p-4">
           <div className="flex items-center justify-between">
             <Label className="flex items-center gap-2 text-sm">
-              {isPrivate ? <Lock className="h-4 w-4 text-amber" /> : <Unlock className="h-4 w-4" />} Private field (Seal)
+              {isPrivate ? <Lock className="h-4 w-4 text-amber" /> : <Unlock className="h-4 w-4" />}{" "}
+              Private field (Seal)
             </Label>
             <Switch checked={isPrivate} onCheckedChange={setIsPrivate} />
           </div>
@@ -595,20 +776,33 @@ function SnapshotDialog({ snapshot, onClose }: { snapshot: Snapshot | null; onCl
         detail: ok ? `Hash verified for ${snapshot.title}` : `Hash MISMATCH for ${snapshot.title}`,
       });
       toast[ok ? "success" : "error"](ok ? "Verified — hash matches Walrus" : "Hash mismatch!");
-    } catch (e: any) {
+    } catch (e: unknown) {
       setState("fail");
-      toast.error("Verification failed", { description: e?.message });
+      toast.error("Verification failed", { description: errorMessage(e) });
     }
   };
 
   return (
-    <Dialog open={!!snapshot} onOpenChange={(o) => { if (!o) { onClose(); setState("idle"); setFetched(null); } }}>
+    <Dialog
+      open={!!snapshot}
+      onOpenChange={(o) => {
+        if (!o) {
+          onClose();
+          setState("idle");
+          setFetched(null);
+        }
+      }}
+    >
       <DialogContent className="max-w-lg">
         {snapshot && (
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                {snapshot.isPrivate ? <Lock className="h-4 w-4 text-amber" /> : <Unlock className="h-4 w-4" />}
+                {snapshot.isPrivate ? (
+                  <Lock className="h-4 w-4 text-amber" />
+                ) : (
+                  <Unlock className="h-4 w-4" />
+                )}
                 {snapshot.title}
               </DialogTitle>
               <DialogDescription>{new Date(snapshot.createdAt).toLocaleString()}</DialogDescription>
@@ -619,9 +813,13 @@ function SnapshotDialog({ snapshot, onClose }: { snapshot: Snapshot | null; onCl
               <Row label="Reasoning" value={snapshot.reasoning || "—"} />
               {snapshot.isPrivate ? (
                 <div className="rounded-lg border border-amber/40 bg-amber/5 p-3">
-                  <p className="flex items-center gap-2 text-amber"><Lock className="h-4 w-4" /> Sealed field</p>
+                  <p className="flex items-center gap-2 text-amber">
+                    <Lock className="h-4 w-4" /> Sealed field
+                  </p>
                   <p className="mt-1 font-mono text-xs text-muted-foreground">
-                    {snapshot.privateNote ? "•••••••••••••••• (decryptable by authorized readers only)" : "—"}
+                    {snapshot.privateNote
+                      ? "•••••••••••••••• (decryptable by authorized readers only)"
+                      : "—"}
                   </p>
                 </div>
               ) : null}
@@ -634,28 +832,51 @@ function SnapshotDialog({ snapshot, onClose }: { snapshot: Snapshot | null; onCl
 
               <div className="flex flex-wrap gap-2">
                 <button onClick={verify} className="btn-primary flex-1">
-                  {state === "verifying" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                  {state === "verifying" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="h-4 w-4" />
+                  )}
                   Verify on Walrus
                 </button>
-                <a href={walrusBlobUrl(snapshot.blobId)} target="_blank" rel="noreferrer" className="btn-ghost">
+                <a
+                  href={walrusBlobUrl(snapshot.blobId)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-ghost"
+                >
                   <ExternalLink className="h-4 w-4" /> Raw blob
                 </a>
               </div>
 
               <AnimatePresence>
                 {state === "ok" && (
-                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 rounded-lg border border-teal/40 bg-teal/10 p-3 text-teal">
-                    <CheckCircle2 className="h-5 w-5" /> Stored hash matches the live Walrus blob. Tamper-free.
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-2 rounded-lg border border-teal/40 bg-teal/10 p-3 text-teal"
+                  >
+                    <CheckCircle2 className="h-5 w-5" /> Stored hash matches the live Walrus blob.
+                    Tamper-free.
                   </motion.div>
                 )}
                 {state === "fail" && (
-                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-destructive">
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-destructive"
+                  >
                     <XCircle className="h-5 w-5" /> Verification failed — content does not match.
                   </motion.div>
                 )}
               </AnimatePresence>
               {fetched && state === "ok" && (
-                <a href={`${SUI_EXPLORER}`} target="_blank" rel="noreferrer" className="block text-xs text-muted-foreground underline">
+                <a
+                  href={`${SUI_EXPLORER}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block text-xs text-muted-foreground underline"
+                >
                   View network on Suiscan
                 </a>
               )}
@@ -687,16 +908,29 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
       if (deployed && ownerAgent?.onChainId) {
         toast.loading("Creating pool on-chain…", { id: "pool" });
         const { objectId } = await createPool(ownerAgent.onChainId, name.trim());
-        db.addPool({ id: objectId, owner, ownerAgentId, name: name.trim(), description: description.trim(), onChainId: objectId });
-        toast.success(`Pool “${name.trim()}” created on-chain`, { id: "pool", description: `Object ${objectId.slice(0, 14)}…` });
+        db.addPool({
+          id: objectId,
+          owner,
+          ownerAgentId,
+          name: name.trim(),
+          description: description.trim(),
+          onChainId: objectId,
+        });
+        toast.success(`Pool “${name.trim()}” created on-chain`, {
+          id: "pool",
+          description: `Object ${objectId.slice(0, 14)}…`,
+        });
       } else {
         db.addPool({ owner, ownerAgentId, name: name.trim(), description: description.trim() });
         toast.success(`Pool “${name.trim()}” created`);
       }
       setName("");
       setDescription("");
-    } catch (e: any) {
-      toast.error("Pool creation failed", { id: "pool", description: e?.message ?? "Try again" });
+    } catch (e: unknown) {
+      toast.error("Pool creation failed", {
+        id: "pool",
+        description: errorMessage(e) ?? "Try again",
+      });
     } finally {
       setBusy(false);
     }
@@ -712,8 +946,8 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
         toast.success("Reader authorized");
       }
       db.setReader(pool.id, reader, true);
-    } catch (e: any) {
-      toast.error("Authorize failed", { id: "auth", description: e?.message ?? "Try again" });
+    } catch (e: unknown) {
+      toast.error("Authorize failed", { id: "auth", description: errorMessage(e) ?? "Try again" });
     }
   };
 
@@ -725,44 +959,76 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
         toast.success("Reader revoked on-chain", { id: "rev" });
       }
       db.setReader(pool.id, reader, false);
-    } catch (e: any) {
-      toast.error("Revoke failed", { id: "rev", description: e?.message ?? "Try again" });
+    } catch (e: unknown) {
+      toast.error("Revoke failed", { id: "rev", description: errorMessage(e) ?? "Try again" });
     }
   };
 
   const query = (poolId: string, poolName: string, ownerAgentId: string) => {
-    db.logAccess({ poolId, poolName, readerAgentId: "external-agent", action: "query", detail: "Pool queried live" });
+    db.logAccess({
+      poolId,
+      poolName,
+      readerAgentId: "external-agent",
+      action: "query",
+      detail: "Pool queried live",
+    });
     const count = db.snapshots(ownerAgentId).length;
-    toast.success(`Queried ${poolName}`, { description: `${count} shared snapshots returned. Logged to access log.` });
+    toast.success(`Queried ${poolName}`, {
+      description: `${count} shared snapshots returned. Logged to access log.`,
+    });
   };
-
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
-      <Panel title="Create a memory pool" subtitle="Share one agent's memory with others under access rules.">
+      <Panel
+        title="Create a memory pool"
+        subtitle="Share one agent's memory with others under access rules."
+      >
         <div className="space-y-4">
           <Field label="Owning agent">
-            <select value={ownerAgentId} onChange={(e) => setOwnerAgentId(e.target.value)} className="h-10 w-full rounded-md border border-input bg-secondary/40 px-3 text-sm outline-none focus:border-primary">
+            <select
+              value={ownerAgentId}
+              onChange={(e) => setOwnerAgentId(e.target.value)}
+              className="h-10 w-full rounded-md border border-input bg-secondary/40 px-3 text-sm outline-none focus:border-primary"
+            >
               <option value="">Select…</option>
-              {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              {agents.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
             </select>
           </Field>
           <Field label="Pool name">
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Market signals pool" />
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Market signals pool"
+            />
           </Field>
           <Field label="Description">
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Shared trading signals for partner agents." />
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              placeholder="Shared trading signals for partner agents."
+            />
           </Field>
-          <button onClick={create} disabled={busy} className="btn-primary w-full disabled:opacity-60">
+          <button
+            onClick={create}
+            disabled={busy}
+            className="btn-primary w-full disabled:opacity-60"
+          >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             {busy ? "Creating…" : deployed ? "Create pool on-chain" : "Create pool"}
           </button>
-
         </div>
       </Panel>
 
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">Your pools</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          Your pools
+        </h3>
         {pools.length === 0 ? (
           <Empty icon={Share2} text="No pools yet. Create one to share memory across agents." />
         ) : (
@@ -771,28 +1037,52 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h4 className="text-lg font-bold">{p.name}</h4>
-                  <p className="text-sm text-muted-foreground">{p.description || "No description"}</p>
-                  <p className="mt-1 font-mono text-xs text-muted-foreground/70">owner agent {p.ownerAgentId.slice(0, 14)}…</p>
+                  <p className="text-sm text-muted-foreground">
+                    {p.description || "No description"}
+                  </p>
+                  <p className="mt-1 font-mono text-xs text-muted-foreground/70">
+                    owner agent {p.ownerAgentId.slice(0, 14)}…
+                  </p>
                 </div>
-                <button onClick={() => query(p.id, p.name, p.ownerAgentId)} className="btn-ghost shrink-0">Query live</button>
+                <button
+                  onClick={() => query(p.id, p.name, p.ownerAgentId)}
+                  className="btn-ghost shrink-0"
+                >
+                  Query live
+                </button>
               </div>
 
               <div className="mt-4 border-t border-border pt-4">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Authorized readers</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Authorized readers
+                </p>
                 {p.readers.length === 0 ? (
                   <p className="text-sm text-muted-foreground">None yet.</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {p.readers.map((r) => (
-                      <span key={r} className="flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-3 py-1 font-mono text-xs">
+                      <span
+                        key={r}
+                        className="flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-3 py-1 font-mono text-xs"
+                      >
                         {r.slice(0, 12)}…
-                        <button onClick={() => revoke(p, r)} className="text-destructive hover:underline">revoke</button>
+                        <button
+                          onClick={() => revoke(p, r)}
+                          className="text-destructive hover:underline"
+                        >
+                          revoke
+                        </button>
                       </span>
                     ))}
                   </div>
                 )}
                 <div className="mt-3 flex gap-2">
-                  <Input value={readerId} onChange={(e) => setReaderId(e.target.value)} placeholder="Reader agent id (0x…)" className="font-mono text-xs" />
+                  <Input
+                    value={readerId}
+                    onChange={(e) => setReaderId(e.target.value)}
+                    placeholder="Reader agent id (0x…)"
+                    className="font-mono text-xs"
+                  />
                   <button
                     onClick={() => {
                       if (!readerId.trim()) return toast.error("Enter an agent id");
@@ -808,13 +1098,16 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
                 {agents.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
                     {agents.map((a) => (
-                      <button key={a.id} onClick={() => authorize(p, a.id)} className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground">
+                      <button
+                        key={a.id}
+                        onClick={() => authorize(p, a.id)}
+                        className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+                      >
                         + {a.name}
                       </button>
                     ))}
                   </div>
                 )}
-
               </div>
             </div>
           ))
@@ -828,8 +1121,17 @@ function PoolsPanel({ owner, agents }: { owner: string; agents: Agent[] }) {
 function AccessLogPanel({ owner }: { owner: string }) {
   const events = db.access(owner);
   const icon = (a: string) =>
-    a === "authorize" ? CheckCircle2 : a === "revoke" ? XCircle : a === "verify" ? ShieldCheck : ScrollText;
-  if (events.length === 0) return <Empty icon={ScrollText} text="No access events yet. Authorize readers or query a pool." />;
+    a === "authorize"
+      ? CheckCircle2
+      : a === "revoke"
+        ? XCircle
+        : a === "verify"
+          ? ShieldCheck
+          : ScrollText;
+  if (events.length === 0)
+    return (
+      <Empty icon={ScrollText} text="No access events yet. Authorize readers or query a pool." />
+    );
   return (
     <div className="overflow-hidden rounded-2xl border border-border">
       <table className="w-full text-sm">
@@ -847,11 +1149,20 @@ function AccessLogPanel({ owner }: { owner: string }) {
             const Icon = icon(e.action);
             return (
               <tr key={e.id} className="hover:bg-secondary/20">
-                <td className="px-4 py-3"><span className="flex items-center gap-2 font-medium capitalize"><Icon className="h-4 w-4 text-teal" />{e.action}</span></td>
+                <td className="px-4 py-3">
+                  <span className="flex items-center gap-2 font-medium capitalize">
+                    <Icon className="h-4 w-4 text-teal" />
+                    {e.action}
+                  </span>
+                </td>
                 <td className="px-4 py-3 text-muted-foreground">{e.poolName}</td>
-                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{e.readerAgentId.slice(0, 14)}…</td>
+                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                  {e.readerAgentId.slice(0, 14)}…
+                </td>
                 <td className="px-4 py-3 text-muted-foreground">{e.detail}</td>
-                <td className="px-4 py-3 text-right text-xs text-muted-foreground">{new Date(e.at).toLocaleTimeString()}</td>
+                <td className="px-4 py-3 text-right text-xs text-muted-foreground">
+                  {new Date(e.at).toLocaleTimeString()}
+                </td>
               </tr>
             );
           })}
@@ -862,17 +1173,40 @@ function AccessLogPanel({ owner }: { owner: string }) {
 }
 
 /* ============================ CONTRACT ============================ */
-function ContractPanel({ owner, agents, pools }: { owner: string; agents: Agent[]; pools: ReturnType<typeof db.pools> }) {
+function ContractPanel({
+  owner,
+  agents,
+  pools,
+}: {
+  owner: string;
+  agents: Agent[];
+  pools: ReturnType<typeof db.pools>;
+}) {
   const deployed = isDeployed();
   const pkg = getPackageId();
 
   const functions = [
-    { sig: "register_agent(name, kind, clock)", desc: "Mints an AgentIdentity object owned by the caller." },
-    { sig: "create_memory_pool(agent, name)", desc: "Creates a shareable MemoryPool tied to an agent." },
-    { sig: "authorize_reader(pool, reader)", desc: "Adds an address to a pool's on-chain reader allowlist." },
+    {
+      sig: "register_agent(name, kind, clock)",
+      desc: "Mints an AgentIdentity object owned by the caller.",
+    },
+    {
+      sig: "create_memory_pool(agent, name)",
+      desc: "Creates a shareable MemoryPool tied to an agent.",
+    },
+    {
+      sig: "authorize_reader(pool, reader)",
+      desc: "Adds an address to a pool's on-chain reader allowlist.",
+    },
     { sig: "revoke_reader(pool, reader)", desc: "Removes an address from the allowlist." },
-    { sig: "anchor_snapshot(agent, pool, blob_id, hash, has_private, clock)", desc: "Binds a Walrus blob id + SHA-256 hash on-chain." },
-    { sig: "log_access(pool, blob_id, clock)", desc: "Records an authorized read in the audit log." },
+    {
+      sig: "anchor_snapshot(agent, pool, blob_id, hash, has_private, clock)",
+      desc: "Binds a Walrus blob id + SHA-256 hash on-chain.",
+    },
+    {
+      sig: "log_access(pool, blob_id, clock)",
+      desc: "Records an authorized read in the audit log.",
+    },
   ];
 
   const onChainAgents = agents.filter((a) => a.onChainId);
@@ -880,7 +1214,10 @@ function ContractPanel({ owner, agents, pools }: { owner: string; agents: Agent[
 
   return (
     <div className="space-y-6">
-      <Panel title="Network & deployment" subtitle="Everything below is live on public infrastructure — no private keys held by this app.">
+      <Panel
+        title="Network & deployment"
+        subtitle="Everything below is live on public infrastructure — no private keys held by this app."
+      >
         <div className="grid gap-3 sm:grid-cols-2">
           <InfoRow k="Sui network" v="Testnet" link={SUI_EXPLORER} />
           <InfoRow k="Move module" v={`${NARWHAL_MODULE}`} />
@@ -889,10 +1226,14 @@ function ContractPanel({ owner, agents, pools }: { owner: string; agents: Agent[
         </div>
 
         <div className="mt-5 rounded-xl border border-border bg-secondary/30 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Package ID</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Package ID
+          </p>
           {deployed ? (
             <div className="mt-2 flex flex-wrap items-center gap-3">
-              <code className="break-all rounded-md bg-background px-2 py-1 font-mono text-xs">{pkg}</code>
+              <code className="break-all rounded-md bg-background px-2 py-1 font-mono text-xs">
+                {pkg}
+              </code>
               <CopyButton value={pkg} />
               <a href={explorer.object(pkg)} target="_blank" rel="noreferrer" className="btn-ghost">
                 <ExternalLink className="h-4 w-4" /> Suiscan
@@ -900,14 +1241,18 @@ function ContractPanel({ owner, agents, pools }: { owner: string; agents: Agent[
             </div>
           ) : (
             <p className="mt-2 text-sm text-muted-foreground">
-              Not deployed in this browser yet. Click <span className="text-foreground">Deploy to testnet</span> above, then your
-              package id and explorer link appear here.
+              Not deployed in this browser yet. Click{" "}
+              <span className="text-foreground">Deploy to testnet</span> above, then your package id
+              and explorer link appear here.
             </p>
           )}
         </div>
       </Panel>
 
-      <Panel title="Entry functions" subtitle={`Public Move calls in ${NARWHAL_MODULE}::${NARWHAL_MODULE}.`}>
+      <Panel
+        title="Entry functions"
+        subtitle={`Public Move calls in ${NARWHAL_MODULE}::${NARWHAL_MODULE}.`}
+      >
         <div className="space-y-2">
           {functions.map((f) => (
             <div key={f.sig} className="rounded-xl border border-border bg-secondary/20 p-3">
@@ -918,24 +1263,45 @@ function ContractPanel({ owner, agents, pools }: { owner: string; agents: Agent[
         </div>
       </Panel>
 
-      <Panel title="Your on-chain objects" subtitle="Agent identities and pools you own, with direct explorer links.">
+      <Panel
+        title="Your on-chain objects"
+        subtitle="Agent identities and pools you own, with direct explorer links."
+      >
         {onChainAgents.length === 0 && onChainPools.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Nothing anchored on-chain yet. Deploy the contract, then register an agent / create a pool to mint real Sui objects.
+            Nothing anchored on-chain yet. Deploy the contract, then register an agent / create a
+            pool to mint real Sui objects.
           </p>
         ) : (
           <div className="space-y-3">
             {onChainAgents.map((a) => (
-              <ObjectRow key={a.id} icon={Bot} label={a.name} id={a.onChainId!} kind="AgentIdentity" />
+              <ObjectRow
+                key={a.id}
+                icon={Bot}
+                label={a.name}
+                id={a.onChainId!}
+                kind="AgentIdentity"
+              />
             ))}
             {onChainPools.map((p) => (
-              <ObjectRow key={p.id} icon={Share2} label={p.name} id={p.onChainId!} kind="MemoryPool" />
+              <ObjectRow
+                key={p.id}
+                icon={Share2}
+                label={p.name}
+                id={p.onChainId!}
+                kind="MemoryPool"
+              />
             ))}
           </div>
         )}
         <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
           <KeyRound className="h-3.5 w-3.5" /> Owner wallet:{" "}
-          <a href={explorer.account(owner)} target="_blank" rel="noreferrer" className="font-mono text-teal hover:underline">
+          <a
+            href={explorer.account(owner)}
+            target="_blank"
+            rel="noreferrer"
+            className="font-mono text-teal hover:underline"
+          >
             {owner.slice(0, 16)}…
           </a>
         </p>
@@ -949,7 +1315,12 @@ function InfoRow({ k, v, link }: { k: string; v: string; link?: string }) {
     <div className="rounded-xl border border-border bg-secondary/20 p-3">
       <p className="text-xs uppercase tracking-wider text-muted-foreground">{k}</p>
       {link ? (
-        <a href={link} target="_blank" rel="noreferrer" className="mt-1 block break-all font-mono text-xs text-teal hover:underline">
+        <a
+          href={link}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-1 block break-all font-mono text-xs text-teal hover:underline"
+        >
           {v}
         </a>
       ) : (
@@ -959,7 +1330,17 @@ function InfoRow({ k, v, link }: { k: string; v: string; link?: string }) {
   );
 }
 
-function ObjectRow({ icon: Icon, label, id, kind }: { icon: any; label: string; id: string; kind: string }) {
+function ObjectRow({
+  icon: Icon,
+  label,
+  id,
+  kind,
+}: {
+  icon: LucideIcon;
+  label: string;
+  id: string;
+  kind: string;
+}) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-secondary/20 p-3">
       <div className="flex items-center gap-3">
@@ -968,7 +1349,9 @@ function ObjectRow({ icon: Icon, label, id, kind }: { icon: any; label: string; 
         </span>
         <div>
           <p className="font-semibold">{label}</p>
-          <p className="font-mono text-xs text-muted-foreground">{kind} · {id.slice(0, 18)}…</p>
+          <p className="font-mono text-xs text-muted-foreground">
+            {kind} · {id.slice(0, 18)}…
+          </p>
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -1000,30 +1383,44 @@ function CopyButton({ value }: { value: string }) {
 }
 
 /* ============================ SHARED UI ============================ */
-function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+function Panel({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-6">
-      <h3 className="text-lg font-bold">{title}</h3>
-      {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
-      <div className="mt-5">{children}</div>
+    <div className="rounded-3xl border border-border/40 bg-card/40 backdrop-blur-3xl p-8 shadow-xl shadow-black/5">
+      <h3 className="text-2xl font-light tracking-tight">{title}</h3>
+      {subtitle && (
+        <p className="mt-2 text-sm font-light text-muted-foreground max-w-lg">{subtitle}</p>
+      )}
+      <div className="mt-8">{children}</div>
     </div>
   );
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="space-y-2">
-      <Label className="text-xs uppercase tracking-wider text-muted-foreground">{label}</Label>
+    <div className="space-y-3">
+      <Label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+        {label}
+      </Label>
       {children}
     </div>
   );
 }
 
-function Empty({ icon: Icon, text }: { icon: any; text: string }) {
+function Empty({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 p-12 text-center">
-      <Icon className="h-8 w-8 text-muted-foreground" />
-      <p className="mt-4 max-w-xs text-sm text-muted-foreground">{text}</p>
+    <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/40 bg-card/20 p-16 text-center backdrop-blur-sm">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary/50 shadow-inner mb-6">
+        <Icon className="h-6 w-6 text-muted-foreground/60" />
+      </div>
+      <p className="max-w-xs text-sm font-light text-muted-foreground leading-relaxed">{text}</p>
     </div>
   );
 }
