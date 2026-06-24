@@ -56,6 +56,7 @@ import {
 import { db, type Agent, type Snapshot } from "@/lib/store";
 import { useTuskSync } from "@/lib/useTusk";
 import { storeBlob, readBlob, walrusBlobUrl, sha256Hex } from "@/lib/walrus";
+import { generateSealKey, sealPrivateNote, unsealPrivateNote } from "@/lib/seal";
 import {
   SUI_EXPLORER,
   WALRUS_PUBLISHER,
