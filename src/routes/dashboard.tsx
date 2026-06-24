@@ -794,6 +794,19 @@ function SnapshotComposer({
 function SnapshotDialog({ snapshot, onClose }: { snapshot: Snapshot | null; onClose: () => void }) {
   const [state, setState] = useState<"idle" | "verifying" | "ok" | "fail">("idle");
   const [fetched, setFetched] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState<string | null>(null);
+
+  const reveal = async () => {
+    if (!snapshot?.sealKey) return;
+    try {
+      const raw = await readBlob(snapshot.blobId);
+      const sealedField = (JSON.parse(raw) as { privateNote?: string }).privateNote ?? "";
+      const plain = await unsealPrivateNote(sealedField, snapshot.sealKey);
+      setRevealed(plain);
+    } catch (e: unknown) {
+      toast.error("Could not decrypt sealed field", { description: errorMessage(e) });
+    }
+  };
 
   const verify = async () => {
     if (!snapshot) return;
