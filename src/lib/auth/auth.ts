@@ -32,7 +32,7 @@ type AuthSession = {
 function sessionConfig() {
   return {
     name: SESSION_NAME,
-    password: SESSION_PASSWORD,
+    password: getSessionPassword(),
     cookie: {
       httpOnly: true,
       sameSite: "lax" as const,
