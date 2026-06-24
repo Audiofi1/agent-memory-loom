@@ -79,7 +79,7 @@ export const getAuthChallenge = createServerFn({ method: "POST" })
   });
 
 export const verifySignIn = createServerFn({ method: "POST" })
-  .validator((input: unknown) => {
+  .inputValidator((input: unknown) => {
     const v = input as { address?: unknown; signature?: unknown; messageBytes?: unknown };
     if (typeof v?.address !== "string" || typeof v?.signature !== "string") {
       throw new Error("address and signature are required.");
