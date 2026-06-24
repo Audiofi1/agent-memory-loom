@@ -11,9 +11,16 @@ import { normalizeSuiAddress } from "@mysten/sui/utils";
 const SESSION_NAME = "narwhal_auth";
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 
-const SESSION_PASSWORD =
-  (typeof process !== "undefined" && process.env?.SESSION_SECRET) ||
-  "narwhal-dev-session-secret-please-override-in-production-env";
+function getSessionPassword(): string {
+  const secret =
+    typeof process !== "undefined" ? process.env?.SESSION_SECRET : undefined;
+  if (!secret || secret.length < 32) {
+    throw new Error(
+      "SESSION_SECRET is not configured. Set a strong (>=32 char) random SESSION_SECRET before starting the server.",
+    );
+  }
+  return secret;
+}
 
 type AuthSession = {
   address?: string;
