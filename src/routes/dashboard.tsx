@@ -698,6 +698,7 @@ function SnapshotComposer({
         decision: decision.trim(),
         reasoning: reasoning.trim(),
         privateNote: privateNote.trim() || undefined,
+        sealKey,
         isPrivate,
         blobId: result.blobId,
         hash,
