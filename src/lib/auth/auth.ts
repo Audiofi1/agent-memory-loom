@@ -56,7 +56,7 @@ function buildSignInMessage(address: string, nonce: string, issuedAt: number) {
 }
 
 export const getAuthChallenge = createServerFn({ method: "POST" })
-  .validator((address: unknown) => {
+  .inputValidator((address: unknown) => {
     if (typeof address !== "string" || address.length < 3) {
       throw new Error("A wallet address is required.");
     }
