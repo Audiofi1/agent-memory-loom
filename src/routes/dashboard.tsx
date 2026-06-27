@@ -68,12 +68,20 @@ import { useNarwhal } from "@/lib/useNarwhal";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useTheme } from "@/components/providers/ThemeProvider";
 
-/** Extract a human-readable message from an unknown thrown value. */
+/** Extract a human-readable, actionable message from an unknown thrown value. */
 function errorMessage(e: unknown): string | undefined {
-  if (e instanceof Error) return e.message;
-  if (typeof e === "string") return e;
-  return undefined;
+  const raw = e instanceof Error ? e.message : typeof e === "string" ? e : undefined;
+  if (!raw) return undefined;
+  const lower = raw.toLowerCase();
+  if (lower.includes("reject") || lower.includes("denied") || lower.includes("cancel"))
+    return "You rejected the transaction in your wallet.";
+  if (lower.includes("insufficient") || lower.includes("no valid gas") || lower.includes("gas"))
+    return "Your wallet doesn't have enough testnet SUI for gas. Get free coins at https://faucet.sui.io and try again.";
+  if (lower.includes("no wallet") || lower.includes("not connected"))
+    return "Connect your Sui wallet first.";
+  return raw;
 }
+
 
 export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
