@@ -15,6 +15,27 @@ export function useNarwhal() {
   const account = useCurrentAccount();
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
+  /**
+   * Every on-chain action costs a little testnet SUI for gas. The #1 reason a
+   * transaction "fails" is an empty wallet, so we check up-front and throw a
+   * clear, actionable message instead of an opaque RPC error.
+   */
+  const assertCanPayGas = useCallback(async () => {
+    if (!account) throw new Error("Connect your Sui wallet first.");
+    try {
+      const { totalBalance } = await client.getBalance({ owner: account.address });
+      if (BigInt(totalBalance) === 0n) {
+        throw new Error(
+          "Your wallet has 0 testnet SUI, so it can't pay the small gas fee. " +
+            "Get free coins at https://faucet.sui.io (paste your address) and try again.",
+        );
+      }
+    } catch (e) {
+      // Re-throw our own friendly error; ignore balance-lookup hiccups otherwise.
+      if (e instanceof Error && e.message.includes("testnet SUI")) throw e;
+    }
+  }, [account, client]);
+
   /** Wait for finality and return the parsed object changes for a digest. */
   const resolve = useCallback(
     async (digest: string) => {
@@ -30,6 +51,7 @@ export function useNarwhal() {
   /** Publish the compiled Narwhal package. Returns the new package id. */
   const publish = useCallback(async (): Promise<string> => {
     if (!account) throw new Error("Connect your wallet first");
+    await assertCanPayGas();
     const tx = new Transaction();
     const [upgradeCap] = tx.publish({
       modules: (bytecode as any).modules,
@@ -44,13 +66,17 @@ export function useNarwhal() {
     if (!pkg) throw new Error("Could not read package id from publish result");
     setPackageId(pkg);
     return pkg;
-  }, [account, signAndExecute, resolve]);
+  }, [account, assertCanPayGas, signAndExecute, resolve]);
 
   /** register_agent — creates an AgentIdentity owned by the wallet. Returns its object id. */
   const registerAgent = useCallback(
     async (name: string, kind: string): Promise<{ objectId: string; digest: string }> => {
       const pkg = getPackageId();
-      if (!pkg) throw new Error("Contract not deployed yet");
+      if (!pkg)
+        throw new Error(
+          "The on-chain contract isn't deployed yet. Use “Deploy to testnet” at the top of the dashboard first.",
+        );
+      await assertCanPayGas();
       const tx = new Transaction();
       tx.moveCall({
         target: `${pkg}::${NARWHAL_MODULE}::register_agent`,
@@ -62,7 +88,7 @@ export function useNarwhal() {
       if (!objectId) throw new Error("Agent object id not found in result");
       return { objectId, digest };
     },
-    [signAndExecute, resolve],
+    [assertCanPayGas, signAndExecute, resolve],
   );
 
   /** create_memory_pool — needs the agent object. Returns the pool object id. */
