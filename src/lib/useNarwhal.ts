@@ -15,6 +15,27 @@ export function useNarwhal() {
   const account = useCurrentAccount();
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
+  /**
+   * Every on-chain action costs a little testnet SUI for gas. The #1 reason a
+   * transaction "fails" is an empty wallet, so we check up-front and throw a
+   * clear, actionable message instead of an opaque RPC error.
+   */
+  const assertCanPayGas = useCallback(async () => {
+    if (!account) throw new Error("Connect your Sui wallet first.");
+    try {
+      const { totalBalance } = await client.getBalance({ owner: account.address });
+      if (BigInt(totalBalance) === 0n) {
+        throw new Error(
+          "Your wallet has 0 testnet SUI, so it can't pay the small gas fee. " +
+            "Get free coins at https://faucet.sui.io (paste your address) and try again.",
+        );
+      }
+    } catch (e) {
+      // Re-throw our own friendly error; ignore balance-lookup hiccups otherwise.
+      if (e instanceof Error && e.message.includes("testnet SUI")) throw e;
+    }
+  }, [account, client]);
+
   /** Wait for finality and return the parsed object changes for a digest. */
   const resolve = useCallback(
     async (digest: string) => {
